@@ -55,8 +55,9 @@ const sampleFires = [
     }
   }
 ];
-
+// where the dashboard code starts
 const WildfireDashboard = () => {
+  //stuff with ui states
   const [fires, setFires] = useState(sampleFires);
   const [selectedFire, setSelectedFire] = useState(null);
   const [prediction, setPrediction] = useState(null);
@@ -88,14 +89,14 @@ const WildfireDashboard = () => {
         initializeMap();
       }
     };
-
+    //starting the map for the user
     const initializeMap = () => {
       if (!mapRef.current || mapInstanceRef.current) return;
 
       const L = window.L;
       
-      // Intialize the map to be in SFBA
-      // we could use the user's location in real production
+      // Intialize the map to be in San Francisco Bay Area
+      // we could use the user's location in real production, but this is just a default location
       const map = L.map(mapRef.current, {
         center: [37.7749, -122.4194],
         zoom: 10,
@@ -105,15 +106,15 @@ const WildfireDashboard = () => {
       // add tile layers because leaflet doesn't have satellite on default
       const getTileUrl = (layer) => {
         switch (layer) {
-          case 'satellite':
+          case 'satellite': //satellite
             return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-          case 'terrain':
+          case 'terrain': //terrain map
             return 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-          default:
+          default: //normal
             return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
         }
       };
-
+      // credits to open street map
       const tileLayer = L.tileLayer(getTileUrl(mapLayer), {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
@@ -137,7 +138,7 @@ const WildfireDashboard = () => {
     };
 
     loadLeaflet();
-
+    // actually display ts
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
@@ -151,7 +152,7 @@ const WildfireDashboard = () => {
     if (mapInstanceRef.current && mapInstanceRef.current.tileLayer) {
       const L = window.L;
       mapInstanceRef.current.removeLayer(mapInstanceRef.current.tileLayer);
-      
+      // lebron idk
       const getTileUrl = (layer) => {
         switch (layer) {
           case 'satellite':
@@ -190,7 +191,7 @@ const WildfireDashboard = () => {
         justify-content: center;
         font-size: 14px;
         cursor: pointer;
-      ">🔥</div>`,
+      ">🔥</div>`, // claude made this the fire icon idk why lmao
       className: 'fire-marker',
       iconSize: [28, 28],
       iconAnchor: [14, 14],
@@ -260,7 +261,7 @@ const WildfireDashboard = () => {
     
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+    // some mock data, we would import this from the model in production
     const mockPrediction = {
       fireId: fireId,
       predictionDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
@@ -275,7 +276,7 @@ const WildfireDashboard = () => {
         [fireData.lat - 0.01, fireData.lng + 0.005]
       ]
     };
-    
+    // then we display the predictions into the UI
     setPrediction(mockPrediction);
     setShowPrediction(true);
     setLoading(false);
@@ -285,7 +286,7 @@ const WildfireDashboard = () => {
     setSelectedFire(fire);
     fetchPrediction(fire.id, fire);
   };
-
+  // this is in the text when showing the severity of the fire
   const getSeverityColor = (severity) => {
     switch (severity) {
       case 'High': return 'text-red-400';
@@ -294,14 +295,14 @@ const WildfireDashboard = () => {
       default: return 'text-gray-400';
     }
   };
-
+  // the date
   const formatDate = (isoString) => {
     return new Date(isoString).toLocaleString();
   };
 
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-white">
-      {/* Header */}
+      {/* the header at the top with like the logo and other settings */}
       <header className="bg-gray-800 p-4 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -330,7 +331,7 @@ const WildfireDashboard = () => {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Map */}
+        {/* the actual map itself */}
         <div className="flex-1 relative">
           <div 
             ref={mapRef} 
@@ -338,7 +339,7 @@ const WildfireDashboard = () => {
             style={{ minHeight: '500px' }}
           />
 
-          {/* list of active fires */}
+          {/* this is that thing that pops up when u click on the icon */}
           <div className="absolute top-4 left-4 bg-gray-800 bg-opacity-95 backdrop-blur-sm rounded-lg p-4 shadow-xl max-w-sm z-[1000] border border-gray-600">
             <h3 className="text-lg font-bold mb-3 flex items-center text-white">
               <AlertTriangle className="h-5 w-5 mr-2 text-orange-500" />
@@ -372,7 +373,7 @@ const WildfireDashboard = () => {
           </div>
         </div>
 
-        {/* panel where it shows predictions */}
+        {/* panel where it shows predictions (the one on the right) */}
         {showPrediction && (
           <div className="w-96 bg-gray-800 p-6 overflow-y-auto shadow-xl border-l border-gray-700">
             <div className="flex items-center justify-between mb-4">
@@ -436,8 +437,14 @@ const WildfireDashboard = () => {
                       <div>Prediction Date: {formatDate(prediction.predictionDate)}</div>
                     </div>
                   </div>
+                
+                  
+                  {/* info on the model
 
-                  {/* info on the model 
+                  So this chunk below used to display some info about the model on that sidebar
+                  I commented it out bc I didn't see the use for it but I kept the code
+                  in case we needed it again
+
                   <div className="bg-gray-700 p-4 rounded-lg">
                     <h4 className="font-semibold mb-2 flex items-center">
                       <Eye className="h-4 w-4 mr-2" />

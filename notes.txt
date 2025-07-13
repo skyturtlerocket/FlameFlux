@@ -1,0 +1,30 @@
+Structure:
+
+    backend
+        requirements.txt
+        app.py
+        services
+            fire_service.py
+    frontend
+        public
+            favicon.ico
+            index.html
+            logo192.png
+            logo412.png
+            manifest.json
+            robots.txt (idk what this file is)
+        src
+            App.css
+            App.js
+            App.test.js
+            index.css
+            index.js
+            logo.svg
+            reportWebVitals.js
+            setupTests.js
+            WildfireDashboard.jsx (main page)
+        package-lock-json
+        package.json
+        postcss.config.js
+        tailwind.config.js
+        README.md

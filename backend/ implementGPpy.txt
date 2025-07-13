@@ -1,0 +1,23 @@
+// Fetch all fires
+async function fetchFireData() {
+  try {
+    const response = await fetch('http://localhost:5000/api/fires');
+    const result = await response.json();
+    return result.success ? result.data : [];
+  } catch (error) {
+    console.error('Error fetching fire data:', error);
+    return [];
+  }
+}
+
+// Fetch fires by severity
+async function fetchFiresBySeverity(severity) {
+  try {
+    const response = await fetch(`http://localhost:5000/api/fires/severity/${severity}`);
+    const result = await response.json();
+    return result.success ? result.data : [];
+  } catch (error) {
+    console.error('Error fetching fire data:', error);
+    return [];
+  }
+}

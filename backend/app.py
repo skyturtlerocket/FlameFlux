@@ -23,6 +23,12 @@ app = Flask(__name__)
 # Enable CORS for all routes (adjust origins for production)
 CORS(app)
 
+# Production configuration
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    app.run(host='0.0.0.0', port=port, debug=debug)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -351,21 +357,7 @@ def get_perimeter_predictions():
         logger.error(f"Failed to load perimeter predictions: {e}")
         return jsonify({'error': f'Failed to load perimeter predictions: {e}'}), 500
 
-if __name__ == '__main__':
-    # Get configuration from environment variables
-    host = os.getenv('FLASK_HOST', '127.0.0.1')
-    port = int(os.getenv('FLASK_PORT', 5000))
-    debug = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
-    
-    logger.info(f"Starting Flask server on {host}:{port}")
-    logger.info(f"Debug mode: {debug}")
-    
-    app.run(
-        host=host,
-        port=port,
-        debug=debug,
-        threaded=True
-    )
+
 
 @app.errorhandler(404)
 def not_found(error):

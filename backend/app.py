@@ -46,16 +46,7 @@ def test():
         'timestamp': datetime.now().isoformat()
     })
 
-# Production configuration
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_ENV') == 'development'
-    
-    logger.info(f"Starting Flask server on port {port}")
-    logger.info(f"Debug mode: {debug}")
-    logger.info(f"Environment: {os.environ.get('FLASK_ENV', 'development')}")
-    
-    app.run(host='0.0.0.0', port=port, debug=debug)
+
 
 # Cache for fire data to avoid too many API calls
 fire_data_cache = {
@@ -398,3 +389,14 @@ def internal_error(error):
         'message': 'An unexpected error occurred',
         'timestamp': datetime.now().isoformat()
     }), 500
+
+# Production configuration - must be at the end after all routes are defined
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    
+    logger.info(f"Starting Flask server on port {port}")
+    logger.info(f"Debug mode: {debug}")
+    logger.info(f"Environment: {os.environ.get('FLASK_ENV', 'development')}")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug)

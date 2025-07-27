@@ -1,7 +1,7 @@
 // Service to fetch perimeter prediction GeoJSON from the backend
 
 export async function fetchPerimeterPredictions() {
-  const response = await fetch('http://localhost:5000/api/perimeter-predictions');
+  const response = await fetch('https://flameflux-production.up.railway.app/api/perimeter-predictions');
   if (!response.ok) {
     throw new Error('Failed to fetch perimeter predictions');
   }

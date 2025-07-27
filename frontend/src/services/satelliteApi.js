@@ -4,7 +4,7 @@ export const fetchSatelliteData = async (satellite) => {
     try {
       console.log(`Fetching ${satellite} satellite data from Flask backend...`);
       
-      const response = await fetch(`http://localhost:5000/api/${satellite.toLowerCase()}`, {
+      const response = await fetch(`https://flameflux-production.up.railway.app/api/${satellite.toLowerCase()}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',

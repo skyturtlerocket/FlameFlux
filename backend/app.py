@@ -9,32 +9,53 @@ import json
 # Add the services directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'services'))
 
-# Import the services
-try:
-    from fire_service import get_fires_data
-    from satellite_service import get_modis_data, get_viirs_data
-except ImportError as e:
-    print(f"Error importing services: {e}")
-    sys.exit(1)
-
-# Initialize Flask app
-app = Flask(__name__)
-
-# Enable CORS for all routes (adjust origins for production)
-CORS(app)
-
-# Production configuration
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_ENV') == 'development'
-    app.run(host='0.0.0.0', port=port, debug=debug)
-
-# Configure logging
+# Configure logging first
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+logger.info("Starting Flask application initialization...")
+
+# Import the services
+try:
+    from fire_service import get_fires_data
+    from satellite_service import get_modis_data, get_viirs_data
+    logger.info("Successfully imported all services")
+except ImportError as e:
+    logger.error(f"Error importing services: {e}")
+    print(f"Error importing services: {e}")
+    sys.exit(1)
+
+# Initialize Flask app
+app = Flask(__name__)
+logger.info("Flask app initialized")
+
+# Enable CORS for all routes (adjust origins for production)
+CORS(app)
+logger.info("CORS enabled")
+
+# Simple test route
+@app.route('/test')
+def test():
+    """Simple test endpoint"""
+    logger.info("Test endpoint called")
+    return jsonify({
+        'message': 'Flask app is working!',
+        'timestamp': datetime.now().isoformat()
+    })
+
+# Production configuration
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    
+    logger.info(f"Starting Flask server on port {port}")
+    logger.info(f"Debug mode: {debug}")
+    logger.info(f"Environment: {os.environ.get('FLASK_ENV', 'development')}")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug)
 
 # Cache for fire data to avoid too many API calls
 fire_data_cache = {

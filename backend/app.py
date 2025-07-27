@@ -4,22 +4,24 @@ import os
 import sys
 from datetime import datetime
 import logging
+import json
 
 # Add the services directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'services'))
 
-# Import the fire service
+# Import the services
 try:
     from fire_service import get_fires_data
+    from satellite_service import get_modis_data, get_viirs_data
 except ImportError as e:
-    print(f"Error importing fire_service: {e}")
+    print(f"Error importing services: {e}")
     sys.exit(1)
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Enable CORS for all routes (adjust origins for production)
-CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
+CORS(app)
 
 # Configure logging
 logging.basicConfig(
@@ -35,15 +37,29 @@ fire_data_cache = {
     'cache_duration': 300  # 5 minutes in seconds
 }
 
-def is_cache_valid():
+# Cache for satellite data
+satellite_data_cache = {
+    'modis': {'data': None, 'timestamp': None},
+    'viirs': {'data': None, 'timestamp': None},
+    'cache_duration': 300  # 5 minutes in seconds
+}
+
+def is_cache_valid(cache_timestamp):
     """Check if the cached data is still valid"""
-    if not fire_data_cache['data'] or not fire_data_cache['timestamp']:
+    if not cache_timestamp:
         return False
     
     current_time = datetime.now().timestamp()
-    cache_time = fire_data_cache['timestamp']
+    return (current_time - cache_timestamp) < fire_data_cache['cache_duration']
+
+def is_satellite_cache_valid(satellite_type):
+    """Check if the satellite cache is still valid"""
+    cache_data = satellite_data_cache.get(satellite_type)
+    if not cache_data or not cache_data['data'] or not cache_data['timestamp']:
+        return False
     
-    return (current_time - cache_time) < fire_data_cache['cache_duration']
+    current_time = datetime.now().timestamp()
+    return (current_time - cache_data['timestamp']) < satellite_data_cache['cache_duration']
 
 @app.route('/')
 def index():
@@ -60,7 +76,7 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'cache_status': 'valid' if is_cache_valid() else 'expired'
+        'cache_status': 'valid' if is_cache_valid(fire_data_cache['timestamp']) else 'expired'
     })
 
 @app.route('/api/fires', methods=['GET'])
@@ -70,7 +86,7 @@ def get_fires():
         logger.info("Received request for fire data")
         
         # Check if we have valid cached data
-        if is_cache_valid():
+        if is_cache_valid(fire_data_cache['timestamp']):
             logger.info("Returning cached fire data")
             return jsonify(fire_data_cache['data'])
         
@@ -93,6 +109,66 @@ def get_fires():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/api/modis', methods=['GET'])
+def get_modis():
+    """Get MODIS satellite data"""
+    try:
+        logger.info("Received request for MODIS data")
+        
+        # Check if we have valid cached data
+        if is_satellite_cache_valid('modis'):
+            logger.info("Returning cached MODIS data")
+            return jsonify(satellite_data_cache['modis']['data'])
+        
+        # Fetch fresh data
+        logger.info("Fetching fresh MODIS data from external API")
+        modis_data = get_modis_data()
+        
+        # Update cache
+        satellite_data_cache['modis']['data'] = modis_data
+        satellite_data_cache['modis']['timestamp'] = datetime.now().timestamp()
+        
+        logger.info(f"Successfully fetched {modis_data.get('total', 0)} MODIS hotspots")
+        return jsonify(modis_data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching MODIS data: {str(e)}")
+        return jsonify({
+            'error': 'Failed to fetch MODIS data',
+            'message': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/viirs', methods=['GET'])
+def get_viirs():
+    """Get VIIRS satellite data"""
+    try:
+        logger.info("Received request for VIIRS data")
+        
+        # Check if we have valid cached data
+        if is_satellite_cache_valid('viirs'):
+            logger.info("Returning cached VIIRS data")
+            return jsonify(satellite_data_cache['viirs']['data'])
+        
+        # Fetch fresh data
+        logger.info("Fetching fresh VIIRS data from external API")
+        viirs_data = get_viirs_data()
+        
+        # Update cache
+        satellite_data_cache['viirs']['data'] = viirs_data
+        satellite_data_cache['viirs']['timestamp'] = datetime.now().timestamp()
+        
+        logger.info(f"Successfully fetched {viirs_data.get('total', 0)} VIIRS hotspots")
+        return jsonify(viirs_data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching VIIRS data: {str(e)}")
+        return jsonify({
+            'error': 'Failed to fetch VIIRS data',
+            'message': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/api/fires/<fire_id>', methods=['GET'])
 def get_fire_details(fire_id):
     """Get details for a specific fire"""
@@ -100,7 +176,7 @@ def get_fire_details(fire_id):
         logger.info(f"Received request for fire details: {fire_id}")
         
         # Get current fire data
-        if is_cache_valid():
+        if is_cache_valid(fire_data_cache['timestamp']):
             fire_data = fire_data_cache['data']
         else:
             fire_data = get_fires_data()
@@ -161,6 +237,44 @@ def refresh_fire_data():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/api/satellite/refresh', methods=['POST'])
+def refresh_satellite_data():
+    """Force refresh of satellite data cache"""
+    try:
+        logger.info("Received request to refresh satellite data cache")
+        
+        # Clear caches
+        satellite_data_cache['modis']['data'] = None
+        satellite_data_cache['modis']['timestamp'] = None
+        satellite_data_cache['viirs']['data'] = None
+        satellite_data_cache['viirs']['timestamp'] = None
+        
+        # Fetch fresh data
+        modis_data = get_modis_data()
+        viirs_data = get_viirs_data()
+        
+        # Update caches
+        satellite_data_cache['modis']['data'] = modis_data
+        satellite_data_cache['modis']['timestamp'] = datetime.now().timestamp()
+        satellite_data_cache['viirs']['data'] = viirs_data
+        satellite_data_cache['viirs']['timestamp'] = datetime.now().timestamp()
+        
+        logger.info(f"Successfully refreshed satellite data: {modis_data.get('total', 0)} MODIS, {viirs_data.get('total', 0)} VIIRS")
+        return jsonify({
+            'message': 'Satellite data refreshed successfully',
+            'modis_total': modis_data.get('total', 0),
+            'viirs_total': viirs_data.get('total', 0),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error refreshing satellite data: {str(e)}")
+        return jsonify({
+            'error': 'Failed to refresh satellite data',
+            'message': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/api/prediction/<fire_id>', methods=['GET'])
 def get_fire_prediction(fire_id):
     """Get prediction for a specific fire (mock implementation)"""
@@ -168,7 +282,7 @@ def get_fire_prediction(fire_id):
         logger.info(f"Received request for fire prediction: {fire_id}")
         
         # Get current fire data to validate fire_id
-        if is_cache_valid():
+        if is_cache_valid(fire_data_cache['timestamp']):
             fire_data = fire_data_cache['data']
         else:
             fire_data = get_fires_data()
@@ -217,6 +331,42 @@ def get_fire_prediction(fire_id):
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/api/perimeter-predictions', methods=['GET'])
+def get_perimeter_predictions():
+    """Serve perimeter predictions GeoJSON"""
+    try:
+        file_path = os.path.join(os.path.dirname(__file__), 'services', 'perimeter_predictions.json')
+        logger.info(f"Loading perimeter predictions from: {file_path}")
+        with open(file_path) as f:
+            data = json.load(f)
+        logger.info(f"Loaded data keys: {list(data.keys())}")
+        logger.info(f"Type field: {data.get('type')}")
+        logger.info(f"Number of features: {len(data.get('features', []))}")
+        
+        # Set proper headers
+        response = jsonify(data)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    except Exception as e:
+        logger.error(f"Failed to load perimeter predictions: {e}")
+        return jsonify({'error': f'Failed to load perimeter predictions: {e}'}), 500
+
+if __name__ == '__main__':
+    # Get configuration from environment variables
+    host = os.getenv('FLASK_HOST', '127.0.0.1')
+    port = int(os.getenv('FLASK_PORT', 5000))
+    debug = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
+    
+    logger.info(f"Starting Flask server on {host}:{port}")
+    logger.info(f"Debug mode: {debug}")
+    
+    app.run(
+        host=host,
+        port=port,
+        debug=debug,
+        threaded=True
+    )
+
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors"""
@@ -235,19 +385,3 @@ def internal_error(error):
         'message': 'An unexpected error occurred',
         'timestamp': datetime.now().isoformat()
     }), 500
-
-if __name__ == '__main__':
-    # Get configuration from environment variables
-    host = os.getenv('FLASK_HOST', '127.0.0.1')
-    port = int(os.getenv('FLASK_PORT', 5000))
-    debug = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
-    
-    logger.info(f"Starting Flask server on {host}:{port}")
-    logger.info(f"Debug mode: {debug}")
-    
-    app.run(
-        host=host,
-        port=port,
-        debug=debug,
-        threaded=True
-    )

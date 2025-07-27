@@ -25,6 +25,22 @@ def get_severity_from_size(area):
     else:
         return "Low"
 
+def is_alaska_fire(lat, lng):
+    """
+    Check if a fire is in Alaska based on geographic bounds.
+    Alaska roughly spans from 51°N to 72°N latitude and 130°W to 173°E longitude.
+    """
+    # Alaska bounds (approximate)
+    alaska_bounds = {
+        'lat_min': 51.0,
+        'lat_max': 72.0,
+        'lng_min': -173.0,
+        'lng_max': -130.0
+    }
+    
+    return (alaska_bounds['lat_min'] <= lat <= alaska_bounds['lat_max'] and
+            alaska_bounds['lng_min'] <= lng <= alaska_bounds['lng_max'])
+
 def get_latest_fires_by_name(features):
     fire_map = {}
     cutoff = datetime.now().timestamp() * 1000 - (24 * 60 * 60 * 1000) # last 24 hours only
@@ -105,8 +121,14 @@ def get_fires_data():
         processed_fires.append(fire_data)
 
     print(f"Successfully processed {len(processed_fires)} fires")
+    
+    # Filter out Alaska fires
+    filtered_fires = [fire for fire in processed_fires if not is_alaska_fire(fire['lat'], fire['lng'])]
+    alaska_count = len(processed_fires) - len(filtered_fires)
+    print(f"Filtered out {alaska_count} Alaska fires")
+    
     return {
-        'fires': processed_fires,
-        'total': len(processed_fires),
+        'fires': filtered_fires,
+        'total': len(filtered_fires),
         'timestamp': datetime.now().isoformat()
     }

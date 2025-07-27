@@ -1,5 +1,5 @@
 import React from 'react';
-import WildfireDashboard from './WildfireDashboard';
+import WildfireDashboard from './components/WildfireDashboard';
 import './App.css';
 
 function App() {

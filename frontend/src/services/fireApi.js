@@ -4,7 +4,7 @@ export const fetchRealTimeFireData = async () => {
     try {
       console.log("Fetching real-time fire data from Flask backend...");
       
-      const response = await fetch('http://localhost:5000/api/fires', {
+      const response = await fetch('https://flameflux-production.up.railway.app/api/fires', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',

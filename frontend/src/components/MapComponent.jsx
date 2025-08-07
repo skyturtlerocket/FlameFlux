@@ -1,16 +1,17 @@
 import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { getTileUrl, getIconSizeForSeverity, getSeverityBackgroundColor, getSeverityColorHex } from '../utils/helpers';
+import { getTileUrl, getIconSizeForSeverity, getSeverityBackgroundColor, getSeverityColorHex, getProbabilityColor } from '../utils/helpers';
 
-const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers, predictedPerimeterEnabled, predictedPerimeterData }, ref) => {
+const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers, predictedPerimeterEnabled, predictedPerimeterData, firePredictionData }, ref) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
   const polygonsRef = useRef([]);
   const satelliteMarkersRef = useRef([]);
+  const predictionMarkersRef = useRef([]);
   const heatmapLayerRef = useRef(null);
   const resizeObserverRef = useRef(null);
   const heatmapLoadedRef = useRef(false);
-  const currentViewRef = useRef({ center: [37.7749, -122.4194], zoom: 10 });
+  const currentViewRef = useRef({ center: [39.8283, -116.4194], zoom: 5 });
 
   // Load Leaflet Heatmap plugin
   const loadHeatmapPlugin = useCallback(() => {
@@ -233,39 +234,56 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
     }
   }, []);
 
-  // Add predicted perimeter polygons
-  const addPredictedPerimeterPolygons = useCallback((map, L) => {
-    if (!predictedPerimeterEnabled || !predictedPerimeterData) {
-      console.log('Predicted perimeter not enabled or data missing');
+  // Add fire prediction probability markers
+  const addFirePredictionMarkers = useCallback((map, L) => {
+    // Always clear existing prediction markers first
+    predictionMarkersRef.current.forEach(marker => map.removeLayer(marker));
+    predictionMarkersRef.current = [];
+    
+    if (!firePredictionData || !firePredictionData.length) {
+      console.log('No fire prediction data available - markers cleared');
       return;
     }
-    if (!predictedPerimeterData.features) {
-      console.log('Predicted perimeter data has no features');
-      return;
-    }
-    console.log('Adding predicted perimeter polygons:', predictedPerimeterData.features.length);
-    predictedPerimeterData.features.forEach((feature, idx) => {
-      if (feature.geometry && feature.geometry.type === 'Polygon') {
-        const coords = feature.geometry.coordinates[0];
-        console.log(`Polygon #${idx} coords:`, coords);
-        const leafletCoords = coords.map(coord => [coord[1], coord[0]]);
-        const polygon = L.polygon(leafletCoords, {
-          color: '#60a5fa', // blue-400 (light blue)
-          weight: 2,
-          opacity: 0.8,
-          fillColor: '#60a5fa',
-          fillOpacity: 0.3
-        }).addTo(map);
-        
-        // Store the polygon reference
-        polygonsRef.current.push(polygon);
-        console.log(`Added predicted perimeter polygon #${idx}`);
-      } else {
-        console.log(`Feature #${idx} is not a Polygon or missing geometry`);
+    
+    console.log('Adding fire prediction markers:', firePredictionData.length);
+    
+    firePredictionData.forEach((point, idx) => {
+      const lat = parseFloat(point.lat);
+      const lon = parseFloat(point.lon);
+      const probability = parseFloat(point.predicted_prob);
+      
+      if (isNaN(lat) || isNaN(lon) || isNaN(probability)) {
+        console.warn(`Invalid data point #${idx}:`, point);
+        return;
       }
-      // Optionally handle MultiPolygon here
+      
+      // Get color based on probability
+      const color = getProbabilityColor(probability);
+      
+      // Create circle marker
+      const marker = L.circleMarker([lat, lon], {
+        radius: 4,
+        fillColor: color,
+        color: color,
+        weight: 1,
+        opacity: 0.8,
+        fillOpacity: 0.7
+      }).addTo(map);
+      
+      // Add popup with probability information
+      marker.bindPopup(`
+        <div style="color: #374151; font-family: system-ui;">
+          <h3 style="font-weight: bold; font-size: 14px; margin: 0 0 8px 0; color: #dc2626;">Fire Prediction</h3>
+          <p style="margin: 2px 0; font-size: 12px;">Probability: ${(probability * 100).toFixed(1)}%</p>
+          <p style="margin: 2px 0; font-size: 12px;">Lat: ${lat.toFixed(4)}, Lng: ${lon.toFixed(4)}</p>
+        </div>
+      `);
+      
+      predictionMarkersRef.current.push(marker);
     });
-  }, [predictedPerimeterEnabled, predictedPerimeterData]);
+    
+    console.log(`Added ${predictionMarkersRef.current.length} prediction markers`);
+  }, [firePredictionData]);
 
   const addFireMarkers = useCallback((map, L) => {
     // Clear existing markers and polygons
@@ -606,7 +624,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
     }
   }, [satelliteLayers, addSatelliteMarkers, addHeatmapLayer]);
 
-  // Update polygons when fires or predicted perimeter changes
+  // Update polygons when fires change
   useEffect(() => {
     if (mapInstanceRef.current && window.L) {
       try {
@@ -624,14 +642,22 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
         fires.forEach(fire => {
           addFirePolygons(mapInstanceRef.current, window.L, fire);
         });
-
-        // Add predicted perimeter polygons
-        addPredictedPerimeterPolygons(mapInstanceRef.current, window.L);
       } catch (error) {
         console.error('Error updating polygons:', error);
       }
     }
-  }, [fires, addFirePolygons, addPredictedPerimeterPolygons]);
+  }, [fires, addFirePolygons]);
+
+  // Update fire prediction markers when data changes
+  useEffect(() => {
+    if (mapInstanceRef.current && window.L) {
+      try {
+        addFirePredictionMarkers(mapInstanceRef.current, window.L);
+      } catch (error) {
+        console.error('Error updating fire prediction markers:', error);
+      }
+    }
+  }, [firePredictionData, addFirePredictionMarkers]);
 
   // Make selectFire global for popup buttons
   useEffect(() => {

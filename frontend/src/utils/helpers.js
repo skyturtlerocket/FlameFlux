@@ -54,3 +54,66 @@ export const getSeverityColor = (severity) => {
         return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     }
   };
+
+// Convert fire name to CSV filename format
+export const convertFireNameToCSV = (fireName) => {
+  if (!fireName) return null;
+  
+  // Remove leading/trailing whitespace and replace internal spaces with underscores
+  return fireName.trim().replace(/\s+/g, '_');
+};
+
+// Get probability color based on predicted_prob value
+export const getProbabilityColor = (probability) => {
+  // Ensure probability is between 0.5 and 1.0
+  const p = Math.max(0.5, Math.min(1.0, probability));
+  
+  // Interpolate between yellow (p=0.5) and red (p=1.0)
+  const ratio = (p - 0.5) / 0.5; // 0 to 1
+  
+  // Yellow: rgb(255, 255, 0) to Red: rgb(255, 0, 0)
+  const red = 255;
+  const green = Math.round(255 * (1 - ratio));
+  const blue = 0;
+  
+  return `rgb(${red}, ${green}, ${blue})`;
+};
+
+// Load CSV data for a specific fire
+export const loadFirePredictionCSV = async (fireName) => {
+  try {
+    const csvFileName = convertFireNameToCSV(fireName);
+    if (!csvFileName) {
+      throw new Error('Invalid fire name');
+    }
+    
+    // Fetch the CSV file directly from the public directory
+    const response = await fetch(`/csv/${csvFileName}.csv`);
+    if (!response.ok) {
+      throw new Error(`CSV file not found: ${csvFileName}.csv`);
+    }
+    
+    const csvText = await response.text();
+    
+    // Parse CSV
+    const lines = csvText.split('\n');
+    const headers = lines[0].split(',');
+    const data = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim()) {
+        const values = lines[i].split(',');
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header.trim()] = values[index]?.trim();
+        });
+        data.push(row);
+      }
+    }
+    
+    return data;
+  } catch (error) {
+    console.error(`Failed to load CSV for fire ${fireName}:`, error);
+    return null;
+  }
+};

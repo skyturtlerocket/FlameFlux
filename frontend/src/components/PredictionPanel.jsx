@@ -1,8 +1,8 @@
 import React from 'react';
-import { X, Thermometer, Wind, Calendar } from 'lucide-react';
+import { X, Thermometer, Wind, Calendar, MapPin } from 'lucide-react';
 import { getSeverityColor, formatDate } from '../utils/helpers';
 
-const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedFire, prediction }) => {
+const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedFire, prediction, firePredictionData, predictionLoading, onTogglePrediction, showPredictionMarkers }) => {
   if (!showPrediction) return null;
 
   return (
@@ -23,7 +23,7 @@ const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedF
           <span className="ml-2">Generating prediction...</span>
         </div>
       ) : (
-        selectedFire && prediction && (
+        selectedFire && (
           <div className="space-y-6">
             {/* Fire info */}
             <div className="bg-gray-700 p-4 rounded-lg">
@@ -36,6 +36,57 @@ const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedF
                 </div>
                 <div>Updated: {formatDate(selectedFire.lastUpdate)}</div>
               </div>
+            </div>
+
+            {/* Prediction Status */}
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h4 className="font-semibold mb-3 flex items-center">
+                <MapPin className="h-4 w-4 mr-2" />
+                Fire Growth Prediction
+              </h4>
+              
+              {predictionLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                  <span className="ml-2 text-sm">Loading prediction data...</span>
+                </div>
+              ) : selectedFire.size < 100 ? (
+                <div className="text-yellow-400 text-sm py-2">
+                  Fire is too small to predict (less than 100 acres)
+                </div>
+              ) : firePredictionData && firePredictionData.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="text-green-400 text-sm">
+                    ✓ Prediction data available ({firePredictionData.length} points)
+                  </div>
+                  <button
+                    onClick={onTogglePrediction}
+                    className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                      showPredictionMarkers 
+                        ? 'bg-red-600 hover:bg-red-700 text-white' 
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    {showPredictionMarkers ? 'Hide Prediction from Map' : 'Show Prediction on Map'}
+                  </button>
+                  
+                  {/* Legend */}
+                  <div className="mt-3 p-3 bg-gray-600 rounded-lg">
+                    <div className="text-xs font-medium mb-2">Probability Legend:</div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                      <span>50%</span>
+                      <div className="flex-1 h-2 bg-gradient-to-r from-yellow-400 to-red-500 rounded"></div>
+                      <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-gray-400 text-sm py-2">
+                  No prediction data available for this fire
+                </div>
+              )}
             </div>
 
             {/* Weather data */}
@@ -56,20 +107,7 @@ const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedF
               </div>
             )}
 
-            {/* Predictions */}
-            <div className="bg-red-900 bg-opacity-50 p-4 rounded-lg border border-red-700">
-              <h4 className="font-semibold mb-2 flex items-center">
-                <Calendar className="h-4 w-4 mr-2" />
-                24-Hour Prediction
-              </h4>
-              <div className="space-y-2 text-sm">
-                <div>Estimated Size: {Math.round(prediction.estimatedSize)} acres</div>
-                <div>Growth: +{Math.round(prediction.estimatedSize - selectedFire.size)} acres</div>
-                <div>Risk Level: <span className="text-red-400 font-semibold">{prediction.riskLevel}</span></div>
-                <div>Confidence: {prediction.confidence}%</div>
-                <div>Prediction Date: {formatDate(prediction.predictionDate)}</div>
-              </div>
-            </div>
+
           </div>
         )
       )}

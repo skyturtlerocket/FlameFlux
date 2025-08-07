@@ -6,7 +6,7 @@ import PredictionPanel from './PredictionPanel';
 import LayersControl from './LayersControl';
 import { fetchRealTimeFireData, fetchPrediction } from '../services/fireApi';
 import { fetchSatelliteData } from '../services/satelliteApi';
-import { fetchPerimeterPredictions } from '../services/perimeterPredictionApi';
+import { loadFirePredictionCSV } from '../utils/helpers';
 
 const WildfireDashboard = () => {
   const mapRef = useRef();
@@ -19,17 +19,18 @@ const WildfireDashboard = () => {
   const [mapLayer, setMapLayer] = useState('satellite');
   const [dataError, setDataError] = useState(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [predictedPerimeterEnabled, setPredictedPerimeterEnabled] = useState(false);
-  const [predictedPerimeterData, setPredictedPerimeterData] = useState(null);
+  const [firePredictionData, setFirePredictionData] = useState(null);
+  const [predictionLoading, setPredictionLoading] = useState(false);
+  const [showPredictionMarkers, setShowPredictionMarkers] = useState(false);
 
   // Satellite data state
   const [satelliteLayers, setSatelliteLayers] = useState({
     viirs: {
-      enabled: true,
+      enabled: false,
       data: []
     },
     modis: {
-      enabled: true,
+      enabled: false,
       data: []
     },
     viewMode: 'markers' // 'markers' or 'heatmap'
@@ -93,26 +94,49 @@ const WildfireDashboard = () => {
     }
   }, []);
 
-  useEffect(() => {
-    // Fetch predicted perimeter GeoJSON on mount
-    fetchPerimeterPredictions()
-      .then(data => {
-        console.log('Predicted perimeter data loaded:', data);
-        setPredictedPerimeterData(data);
-      })
-      .catch(err => {
-        console.error('Failed to fetch predicted perimeter data:', err);
-        setPredictedPerimeterData(null);
-      });
+  // Load fire prediction data for selected fire
+  const loadFirePrediction = useCallback(async (fire) => {
+    if (!fire) {
+      setFirePredictionData(null);
+      return;
+    }
+
+    // Check if fire is too small
+    if (fire.size < 100) {
+      setFirePredictionData(null);
+      return;
+    }
+
+    setPredictionLoading(true);
+    try {
+      const csvData = await loadFirePredictionCSV(fire.name);
+      if (csvData && csvData.length > 0) {
+        console.log(`Loaded prediction data for ${fire.name}:`, csvData.length, 'points');
+        setFirePredictionData(csvData);
+      } else {
+        console.log(`No prediction data available for ${fire.name}`);
+        setFirePredictionData(null);
+      }
+    } catch (error) {
+      console.error(`Failed to load prediction data for ${fire.name}:`, error);
+      setFirePredictionData(null);
+    } finally {
+      setPredictionLoading(false);
+    }
   }, []);
 
-  const handlePredictedPerimeterToggle = () => {
-    setPredictedPerimeterEnabled(val => {
-      const newVal = !val;
-      console.log('Predicted perimeter toggle:', newVal);
-      return newVal;
-    });
-  };
+  // Clear prediction data when no fire is selected
+  const clearFirePrediction = useCallback(() => {
+    setFirePredictionData(null);
+    setShowPredictionMarkers(false);
+  }, []);
+
+  // Toggle prediction markers on map
+  const handleTogglePrediction = useCallback(() => {
+    if (firePredictionData && firePredictionData.length > 0) {
+      setShowPredictionMarkers(prev => !prev);
+    }
+  }, [firePredictionData]);
 
   // Load fire data on component mount
   useEffect(() => {
@@ -127,6 +151,9 @@ const WildfireDashboard = () => {
     setLoading(true);
     setShowPrediction(true);
     
+    // Clear previous prediction data
+    clearFirePrediction();
+    
     // Zoom to fire perimeter
     if (fire && fire.geometry && mapRef.current && mapRef.current.zoomToFire) {
       console.log('Attempting to zoom to fire:', fire.name);
@@ -135,16 +162,13 @@ const WildfireDashboard = () => {
       console.log('No geometry found for fire or mapRef not ready:', fire);
     }
     
-    try {
-      const predictionData = await fetchPrediction(fire.id, fire);
-      setPrediction(predictionData);
-    } catch (error) {
-      console.error('Failed to fetch prediction:', error);
-      setPrediction(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    // Load fire prediction data (no await since we don't want to block the UI)
+    loadFirePrediction(fire);
+    
+    // No longer need the old prediction API call since we removed the 24-hour prediction box
+    setPrediction(null);
+    setLoading(false);
+  }, [loadFirePrediction, clearFirePrediction]);
 
 
 
@@ -192,8 +216,7 @@ const WildfireDashboard = () => {
             mapLayer={mapLayer}
             onFireClick={handleFireClick}
             satelliteLayers={satelliteLayers}
-            predictedPerimeterEnabled={predictedPerimeterEnabled}
-            predictedPerimeterData={predictedPerimeterData}
+            firePredictionData={showPredictionMarkers ? firePredictionData : null}
           />
           
           <FireList 
@@ -209,9 +232,6 @@ const WildfireDashboard = () => {
             onLayerToggle={handleLayerToggle}
             onViewModeChange={handleViewModeChange}
             isLoadingSatelliteData={isLoadingSatelliteData}
-            predictedPerimeterEnabled={predictedPerimeterEnabled}
-            onPredictedPerimeterToggle={handlePredictedPerimeterToggle}
-            predictedPerimeterCount={predictedPerimeterData?.features?.length}
           />
         </div>
 
@@ -222,6 +242,10 @@ const WildfireDashboard = () => {
           loading={loading}
           selectedFire={selectedFire}
           prediction={prediction}
+          firePredictionData={firePredictionData}
+          predictionLoading={predictionLoading}
+          onTogglePrediction={handleTogglePrediction}
+          showPredictionMarkers={showPredictionMarkers}
         />
       </div>
     </div>

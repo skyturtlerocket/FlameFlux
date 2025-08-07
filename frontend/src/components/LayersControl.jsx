@@ -4,10 +4,7 @@ const LayersControl = ({
   satelliteLayers, 
   onLayerToggle, 
   onViewModeChange,
-  isLoadingSatelliteData,
-  predictedPerimeterEnabled,
-  onPredictedPerimeterToggle,
-  predictedPerimeterCount
+  isLoadingSatelliteData
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -93,28 +90,7 @@ const LayersControl = ({
                   </div>
                 </div>
 
-                {/* Predicted Perimeter Toggle */}
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={predictedPerimeterEnabled}
-                      onChange={onPredictedPerimeterToggle}
-                      className="rounded border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-2"
-                    />
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-                      <span className="text-sm text-white">Predicted Perimeter</span>
-                    </div>
-                  </label>
-                  <div className="text-xs text-gray-400">
-                    {predictedPerimeterCount !== undefined ? (
-                      <span>{predictedPerimeterCount} polygons</span>
-                    ) : (
-                      <span>--</span>
-                    )}
-                  </div>
-                </div>
+
               </div>
             </div>
 
@@ -158,10 +134,6 @@ const LayersControl = ({
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                   <span className="text-gray-400">MODIS - Lower resolution</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  <span className="text-gray-400">Predicted Perimeter</span>
                 </div>
               </div>
             </div>

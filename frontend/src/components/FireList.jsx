@@ -19,8 +19,8 @@ const FireList = ({ fires, handleFireClick, isLoadingData, dataError }) => {
       
       {dataError && (
         <div className="bg-red-900 bg-opacity-50 p-3 rounded-lg mb-3 border border-red-700">
-          <p className="text-sm text-red-200">Backend Error: {dataError}</p>
-          <p className="text-xs text-red-300 mt-1">Check Flask server status and logs.</p>
+          <p className="text-sm text-red-200">API Error: {dataError}</p>
+          <p className="text-xs text-red-300 mt-1">Unable to fetch fire data from external API.</p>
         </div>
       )}
       

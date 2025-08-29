@@ -4,8 +4,8 @@ import MapComponent from './MapComponent';
 import FireList from './FireList';
 import PredictionPanel from './PredictionPanel';
 import LayersControl from './LayersControl';
-import { fetchRealTimeFireData, fetchPrediction } from '../services/fireApi';
-import { fetchSatelliteData } from '../services/satelliteApi';
+import { fetchRealTimeFireData, fetchPrediction } from '../services/fireApiDirect';
+import { fetchSatelliteData } from '../services/satelliteApiDirect';
 import { loadFirePredictionCSV } from '../utils/helpers';
 
 const WildfireDashboard = () => {

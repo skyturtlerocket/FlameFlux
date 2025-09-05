@@ -4,7 +4,6 @@ const MODIS_API = "https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/ser
 const VIIRS_API = "https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/Satellite_VIIRS_Thermal_Hotspots_and_Fire_Activity/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson";
 
 const headers = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
   'Accept': 'application/json',
   'Content-Type': 'application/json'
 };

@@ -140,7 +140,12 @@ export const fetchRealTimeFireData = async () => {
         lat: center[1],
         lng: center[0],
         size: area,
-        containment: properties.poly_PercentContained,
+        containment: (
+          properties.attr_PercentContained ??
+          properties.poly_PercentContained ??
+          properties.percent_contained ??
+          null
+        ),
         severity: severity,
         lastUpdate: lastUpdate,
         weather: null, // to be implemented

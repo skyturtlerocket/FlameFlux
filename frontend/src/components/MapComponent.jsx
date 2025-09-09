@@ -329,7 +329,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
           <div style="color: #374151; font-family: system-ui;">
             <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${fire.name}</h3>
             <p style="margin: 2px 0;">Size: ${fire.size} acres</p>
-            <p style="margin: 2px 0;">Containment: ${fire.containment ? `${fire.containment}%` : 'N/A'}</p>
+            <p style="margin: 2px 0;">Containment: ${fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>
             <p style="margin: 2px 0; color: ${getSeverityColorHex(fire.severity)}; font-weight: 600;">
               Severity: ${fire.severity}
             </p>
@@ -347,6 +347,14 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
           </div>
         `)
         .on('click', () => onFireClick(fire));
+
+      // Show popup on hover and hide on mouseout
+      marker.on('mouseover', () => {
+        try { marker.openPopup(); } catch (e) { /* no-op */ }
+      });
+      marker.on('mouseout', () => {
+        try { marker.closePopup(); } catch (e) { /* no-op */ }
+      });
 
       markersRef.current.push(marker);
     });

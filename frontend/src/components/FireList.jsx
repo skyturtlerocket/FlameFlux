@@ -35,7 +35,7 @@ const FireList = ({ fires, handleFireClick, isLoadingData, dataError }) => {
               <div className="flex-1">
                 <h4 className="font-semibold text-white">{fire.name}</h4>
                 <p className="text-sm text-gray-200">{fire.size} acres</p>
-                <p className="text-xs text-gray-300">Containment: {fire.containment ? `${fire.containment}%` : 'N/A'}</p>
+                <p className="text-xs text-gray-300">Containment: {fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>
               </div>
               <div className="text-right ml-2">
                 <span className={`text-sm font-medium ${getSeverityColor(fire.severity)}`}>

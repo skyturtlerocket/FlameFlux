@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { getTileUrl, getIconSizeForSeverity, getSeverityBackgroundColor, getSeverityColorHex, getProbabilityColor } from '../utils/helpers';
+import { getTileUrl, getIconSizeForSeverity, getSeverityBackgroundColor, getSeverityColorHex, getProbabilityColor, hasPredictionCSV } from '../utils/helpers';
 
 const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers, predictedPerimeterEnabled, predictedPerimeterData, firePredictionData }, ref) => {
   const mapRef = useRef(null);
@@ -324,37 +324,91 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
       
       // Add marker
       const marker = L.marker([fire.lat, fire.lng], { icon: fireIcon })
-        .addTo(map)
-        .bindPopup(`
-          <div style="color: #374151; font-family: system-ui;">
-            <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${fire.name}</h3>
-            <p style="margin: 2px 0;">Size: ${fire.size} acres</p>
-            <p style="margin: 2px 0;">Containment: ${fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>
-            <p style="margin: 2px 0; color: ${getSeverityColorHex(fire.severity)}; font-weight: 600;">
-              Severity: ${fire.severity}
-            </p>
-            <div style="display: flex; gap: 8px; margin-top: 8px;">
-              <button onclick="window.selectFire('${fire.id}')" style="
-                background: #3b82f6;
-                color: white;
-                border: none;
-                padding: 4px 8px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 12px;
-              ">View Details</button>
+        .addTo(map);
+
+      const basePopupHtml = `
+            <div style="color: #374151; font-family: system-ui;">
+              <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${fire.name}</h3>
+              <p style="margin: 2px 0;">Size: ${fire.size} acres</p>
+              <p style="margin: 2px 0;">Containment: ${fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>
+              <p style="margin: 2px 0; color: ${getSeverityColorHex(fire.severity)}; font-weight: 600;">
+                Severity: ${fire.severity}
+              </p>
             </div>
-          </div>
-        `)
+          `;
+
+      marker.bindPopup(basePopupHtml)
         .on('click', () => onFireClick(fire));
 
-      // Show popup on hover and hide on mouseout
-      marker.on('mouseover', () => {
-        try { marker.openPopup(); } catch (e) { /* no-op */ }
-      });
-      marker.on('mouseout', () => {
-        try { marker.closePopup(); } catch (e) { /* no-op */ }
-      });
+        // If prediction CSV exists, augment popup with a View Prediction button
+        try {
+          hasPredictionCSV(fire.name).then((exists) => {
+            if (!exists) return;
+            const popupHtml = `
+              <div style="color: #374151; font-family: system-ui;">
+                <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${fire.name}</h3>
+                <p style="margin: 2px 0;">Size: ${fire.size} acres</p>
+                <p style="margin: 2px 0;">Containment: ${fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>
+                <p style="margin: 2px 0; color: ${getSeverityColorHex(fire.severity)}; font-weight: 600;">
+                  Severity: ${fire.severity}
+                </p>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                  <button data-action="view-prediction" style="
+                    background: #3b82f6;
+                    color: white;
+                    border: none;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                  ">View Prediction</button>
+                </div>
+              </div>`;
+            try {
+              const popup = marker.getPopup();
+              if (popup && popup.setContent) {
+                popup.setContent(popupHtml);
+              }
+            } catch (e) { /* no-op */ }
+          });
+        } catch (e) {
+          // ignore
+        }
+
+        // Keep popup open when hovering popup content; close only when leaving both marker and popup
+        let isHoveringPopup = false;
+        marker.on('mouseover', () => {
+          try { marker.openPopup(); } catch (e) { /* no-op */ }
+        });
+        marker.on('popupopen', () => {
+          try {
+            const popup = marker.getPopup();
+            const container = popup && (popup.getElement ? popup.getElement() : popup._container);
+            if (container) {
+              // Sticky hover
+              container.addEventListener('mouseenter', () => { isHoveringPopup = true; });
+              container.addEventListener('mouseleave', () => {
+                isHoveringPopup = false;
+                setTimeout(() => { if (!isHoveringPopup) { try { marker.closePopup(); } catch (e) {} } }, 120);
+              });
+              // Wire up View Prediction button
+              const btn = container.querySelector('[data-action="view-prediction"]');
+              if (btn) {
+                btn.addEventListener('click', (ev) => {
+                  ev.preventDefault();
+                  try { onFireClick(fire); } catch {}
+                }, { once: true });
+              }
+            }
+          } catch (e) { /* no-op */ }
+        });
+        marker.on('mouseout', () => {
+          setTimeout(() => {
+            if (!isHoveringPopup) {
+              try { marker.closePopup(); } catch (e) { /* no-op */ }
+            }
+          }, 120);
+        });
 
       markersRef.current.push(marker);
     });

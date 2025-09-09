@@ -117,3 +117,40 @@ export const loadFirePredictionCSV = async (fireName) => {
     return null;
   }
 };
+
+// Cache for prediction CSV existence checks to avoid repeated network calls
+const csvExistenceCache = new Map();
+
+// Check if a prediction CSV exists for a given fire name
+export const hasPredictionCSV = async (fireName) => {
+  const csvFileName = convertFireNameToCSV(fireName);
+  if (!csvFileName) return false;
+
+  if (csvExistenceCache.has(csvFileName)) {
+    return csvExistenceCache.get(csvFileName);
+  }
+
+  try {
+    const response = await fetch(`/csv/${csvFileName}.csv`, { method: 'GET' });
+    if (!response.ok) {
+      csvExistenceCache.set(csvFileName, false);
+      return false;
+    }
+
+    // Validate content-type and a minimal CSV header
+    const contentType = (response.headers && response.headers.get && response.headers.get('content-type')) || '';
+    const isCSVType = contentType.includes('text/csv') || contentType.includes('application/csv') || contentType.includes('application/octet-stream');
+
+    // Read just a small portion (dev servers may not support partial reads easily; read full then slice header)
+    const text = await response.text();
+    const firstLine = (text.split('\n')[0] || '').toLowerCase();
+    const hasHeader = firstLine.includes('predicted_prob') || firstLine.includes('lat,') || firstLine.includes('lon');
+
+    const exists = isCSVType && hasHeader;
+    csvExistenceCache.set(csvFileName, exists);
+    return exists;
+  } catch (e) {
+    csvExistenceCache.set(csvFileName, false);
+    return false;
+  }
+};

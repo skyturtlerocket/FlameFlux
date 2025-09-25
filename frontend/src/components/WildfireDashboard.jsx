@@ -16,7 +16,7 @@ const WildfireDashboard = () => {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showPrediction, setShowPrediction] = useState(false);
-  const [mapLayer, setMapLayer] = useState('satellite');
+  const [mapLayer, setMapLayer] = useState('standard');
   const [dataError, setDataError] = useState(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [firePredictionData, setFirePredictionData] = useState(null);

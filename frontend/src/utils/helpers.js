@@ -89,17 +89,31 @@ export const loadFirePredictionCSV = async (fireName) => {
     
     // Fetch the CSV file directly from the public directory
     const response = await fetch(`/csv/${csvFileName}.csv`);
+
+    // If the file isn't found, return null so callers treat it as "no data"
     if (!response.ok) {
       throw new Error(`CSV file not found: ${csvFileName}.csv`);
     }
-    
-    const csvText = await response.text();
-    
+
+    // Do a lightweight validation: ensure the response looks like CSV and not HTML
+    const contentType = (response.headers && response.headers.get && response.headers.get('content-type')) || '';
+    const text = await response.text();
+    const firstLine = (text.split('\n')[0] || '').toLowerCase();
+
+    const isCSVType = contentType.includes('text/csv') || contentType.includes('application/csv') || contentType.includes('application/octet-stream');
+    const hasHeader = firstLine.includes('predicted_prob') || (firstLine.includes('lat') && firstLine.includes('lon')) || firstLine.includes('predicted_prob');
+
+    // If it doesn't appear to be CSV (for example dev server returning index.html), treat as not found
+    if (!isCSVType && !hasHeader) {
+      throw new Error(`Fetched resource is not a CSV for ${csvFileName}.csv`);
+    }
+
     // Parse CSV
+    const csvText = text;
     const lines = csvText.split('\n');
     const headers = lines[0].split(',');
     const data = [];
-    
+
     for (let i = 1; i < lines.length; i++) {
       if (lines[i].trim()) {
         const values = lines[i].split(',');
@@ -110,7 +124,7 @@ export const loadFirePredictionCSV = async (fireName) => {
         data.push(row);
       }
     }
-    
+
     return data;
   } catch (error) {
     console.error(`Failed to load CSV for fire ${fireName}:`, error);

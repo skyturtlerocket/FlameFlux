@@ -301,21 +301,21 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
       const iconConfig = getIconSizeForSeverity(fire.severity);
       const backgroundColor = getSeverityBackgroundColor(fire.severity);
       
-      // Create fire icon with dynamic sizing and color
+      // Create fire icon with custom image and dynamic sizing
       const fireIcon = L.divIcon({
         html: `<div style="
-          background: ${backgroundColor};
           width: ${iconConfig.size}px;
           height: ${iconConfig.size}px;
-          border-radius: 50%;
-          border: 3px solid white;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: ${iconConfig.fontSize};
           cursor: pointer;
-        ">🔥</div>`,
+          background-image: url('/fire_icon.png');
+          background-size: contain;
+          background-repeat: no-repeat;
+          background-position: center;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        "></div>`,
         className: 'fire-marker',
         iconSize: [iconConfig.size, iconConfig.size],
         iconAnchor: [iconConfig.size / 2, iconConfig.size / 2],

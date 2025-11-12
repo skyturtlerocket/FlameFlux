@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Thermometer, Wind, Calendar, MapPin } from 'lucide-react';
+import { X, Thermometer, Wind, MapPin } from 'lucide-react';
 import { getSeverityColor, formatDate } from '../utils/helpers';
 
 const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedFire, prediction, firePredictionData, predictionLoading, onTogglePrediction, showPredictionMarkers }) => {

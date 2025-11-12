@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { getTileUrl, getIconSizeForSeverity, getSeverityBackgroundColor, getSeverityColorHex, getProbabilityColor, hasPredictionCSV } from '../utils/helpers';
+import { getTileUrl, getIconSizeForSeverity, getSeverityColorHex, getProbabilityColor, hasPredictionCSV } from '../utils/helpers';
 
 const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers, predictedPerimeterEnabled, predictedPerimeterData, firePredictionData }, ref) => {
   const mapRef = useRef(null);
@@ -298,8 +298,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
       addFirePolygons(map, L, fire);
       
       // Get icon configuration based on severity
-      const iconConfig = getIconSizeForSeverity(fire.severity);
-      const backgroundColor = getSeverityBackgroundColor(fire.severity);
+  const iconConfig = getIconSizeForSeverity(fire.severity);
       
       // Create fire icon with custom image and dynamic sizing
       const fireIcon = L.divIcon({
@@ -310,6 +309,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
           align-items: center;
           justify-content: center;
           cursor: pointer;
+          background: transparent;
           background-image: url('/fire_icon.png');
           background-size: contain;
           background-repeat: no-repeat;
@@ -643,7 +643,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
     loadLeaflet();
 
     return cleanup;
-  }, [fires.length, mapLayer, addFireMarkers, cleanup, addSatelliteMarkers, addHeatmapLayer]);
+  }, [fires.length, mapLayer, addFireMarkers, cleanup, addSatelliteMarkers, addHeatmapLayer, satelliteLayers]);
 
   // Change tiles when map type changes
   useEffect(() => {

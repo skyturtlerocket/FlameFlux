@@ -46,7 +46,7 @@ const isAlaskaFire = (lat, lng) => {
 
 const getLatestFiresByName = (features) => {
   const fireMap = {};
-  const cutoff = Date.now() - (24 * 60 * 60 * 1000); // last 24 hours only
+  const cutoff = Date.now() - (48 * 60 * 60 * 1000); // last 24 hours only
   
   for (const feature of features) {
     const properties = feature.properties || {};

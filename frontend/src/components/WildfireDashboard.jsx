@@ -101,12 +101,6 @@ const WildfireDashboard = () => {
       return;
     }
 
-    // Check if fire is too small
-    if (fire.size < 100) {
-      setFirePredictionData(null);
-      return;
-    }
-
     setPredictionLoading(true);
     try {
       const csvData = await loadFirePredictionCSV(fire.name);

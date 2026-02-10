@@ -50,10 +50,6 @@ const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedF
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                   <span className="ml-2 text-sm">Loading prediction data...</span>
                 </div>
-              ) : selectedFire.size < 100 ? (
-                <div className="text-yellow-400 text-sm py-2">
-                  Fire is too small to predict (less than 100 acres)
-                </div>
               ) : firePredictionData && firePredictionData.length > 0 ? (
                 <div className="space-y-3">
                   <div className="text-green-400 text-sm">

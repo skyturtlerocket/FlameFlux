@@ -2,6 +2,11 @@
   text-align: center;
 }
 
+html {
+  /* Keep layout width consistent when some pages need a vertical scrollbar. */
+  scrollbar-gutter: stable;
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;

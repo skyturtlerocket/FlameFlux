@@ -59,7 +59,7 @@ const FireList = ({ fires, handleFireClick, isLoadingData, dataError, firePredic
             aria-label="Sort active fires"
           >
             <ArrowUpDown className="h-4 w-4" />
-            <span>Sort Fires</span>
+            <span>Sort</span>
           </button>
           {isSortMenuOpen && (
             <div className="absolute right-0 mt-1 w-56 rounded-md border border-gray-600 bg-gray-900 shadow-lg overflow-hidden">

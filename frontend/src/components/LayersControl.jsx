@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { Layers } from 'lucide-react';
 
 const LayersControl = ({ 
+  mapLayer,
+  onMapLayerChange,
   satelliteLayers, 
   onLayerToggle, 
   onViewModeChange,
@@ -29,9 +32,7 @@ const LayersControl = ({
         title="Toggle Layers Panel"
       >
         <div className="flex items-center space-x-2">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zM13 12a1 1 0 11-2 0 1 1 0 012 0zM20 12a1 1 0 11-2 0 1 1 0 012 0z" />
-          </svg>
+          <Layers className="w-5 h-5" />
           <span>Layers</span>
         </div>
       </button>
@@ -40,8 +41,48 @@ const LayersControl = ({
       {isOpen && (
         <div className="absolute top-12 right-0 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 min-w-64">
           <div className="space-y-4">
-            {/* Satellite Layers Section */}
+            {/* Map Tile Section */}
             <div>
+              <h3 className="text-sm font-semibold text-gray-300 mb-3">Map Tiles</h3>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="mapTile"
+                    value="standard"
+                    checked={mapLayer === 'standard'}
+                    onChange={() => onMapLayerChange('standard')}
+                    className="border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm text-white">Standard</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="mapTile"
+                    value="satellite"
+                    checked={mapLayer === 'satellite'}
+                    onChange={() => onMapLayerChange('satellite')}
+                    className="border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm text-white">Satellite</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="mapTile"
+                    value="terrain"
+                    checked={mapLayer === 'terrain'}
+                    onChange={() => onMapLayerChange('terrain')}
+                    className="border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm text-white">Terrain</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Satellite Layers Section */}
+            <div className="border-t border-gray-600 pt-4">
               <h3 className="text-sm font-semibold text-gray-300 mb-3">Satellite Hotspots</h3>
               <div className="space-y-2">
                 {/* VIIRS Toggle */}

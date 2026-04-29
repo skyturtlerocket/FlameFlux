@@ -80,7 +80,9 @@ const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedF
                 </div>
               ) : (
                 <div className="text-gray-400 text-sm py-2">
-                  No prediction data available for this fire
+                  {selectedFire.size < 100
+                    ? 'Fire is too small to predict'
+                    : 'No prediction data available for this fire'}
                 </div>
               )}
             </div>

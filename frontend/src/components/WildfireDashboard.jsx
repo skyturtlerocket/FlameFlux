@@ -6,7 +6,7 @@ import PredictionPanel from './PredictionPanel';
 import LayersControl from './LayersControl';
 import { fetchRealTimeFireData } from '../services/fireApiDirect';
 import { fetchSatelliteData } from '../services/satelliteApiDirect';
-import { loadFirePredictionCSV } from '../utils/helpers';
+import { hasPredictionCSV, loadFirePredictionCSV } from '../utils/helpers';
 
 const WildfireDashboard = () => {
   const mapRef = useRef();
@@ -22,6 +22,7 @@ const WildfireDashboard = () => {
   const [firePredictionData, setFirePredictionData] = useState(null);
   const [predictionLoading, setPredictionLoading] = useState(false);
   const [showPredictionMarkers, setShowPredictionMarkers] = useState(false);
+  const [firePredictionAvailability, setFirePredictionAvailability] = useState({});
 
   // Satellite data state
   const [satelliteLayers, setSatelliteLayers] = useState({
@@ -125,6 +126,34 @@ const WildfireDashboard = () => {
     setShowPredictionMarkers(false);
   }, []);
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadPredictionAvailability = async () => {
+      if (!fires.length) {
+        setFirePredictionAvailability({});
+        return;
+      }
+
+      const entries = await Promise.all(
+        fires.map(async (fire) => {
+          const hasPrediction = await hasPredictionCSV(fire.name);
+          return [fire.id, hasPrediction];
+        })
+      );
+
+      if (!isCancelled) {
+        setFirePredictionAvailability(Object.fromEntries(entries));
+      }
+    };
+
+    loadPredictionAvailability();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [fires]);
+
   // Toggle prediction markers on map
   const handleTogglePrediction = useCallback(() => {
     if (firePredictionData && firePredictionData.length > 0) {
@@ -163,16 +192,6 @@ const WildfireDashboard = () => {
     setPrediction(null);
     setLoading(false);
   }, [loadFirePrediction, clearFirePrediction]);
-
-
-
-  const refreshData = useCallback(async () => {
-    await Promise.all([
-      loadFireData(),
-      loadSatelliteData()
-    ]);
-  }, [loadFireData, loadSatelliteData]);
-
   // Handle satellite layer toggle
   const handleLayerToggle = useCallback((satellite) => {
     setSatelliteLayers(prev => ({
@@ -194,12 +213,7 @@ const WildfireDashboard = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-white">
-      <Header 
-        mapLayer={mapLayer}
-        setMapLayer={setMapLayer}
-        refreshData={refreshData}
-        isLoadingData={isLoadingData}
-      />
+      <Header />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Map section */}
@@ -218,10 +232,13 @@ const WildfireDashboard = () => {
             handleFireClick={handleFireClick}
             isLoadingData={isLoadingData}
             dataError={dataError}
+            firePredictionAvailability={firePredictionAvailability}
           />
 
           {/* Layers Control */}
           <LayersControl
+            mapLayer={mapLayer}
+            onMapLayerChange={setMapLayer}
             satelliteLayers={satelliteLayers}
             onLayerToggle={handleLayerToggle}
             onViewModeChange={handleViewModeChange}

@@ -14,9 +14,9 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/active-fires" element={<WildfireDashboard />} />
-          <Route path="/about" element={<AboutUs />} />
+          <Route path="/about" element={<Achievements />} />
           <Route path="/contact" element={<ContactUs />} />
-          <Route path="/achievements" element={<Achievements />} />
+          <Route path="/team" element={<AboutUs />} />
         </Routes>
       </div>
     </BrowserRouter>

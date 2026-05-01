@@ -23,12 +23,12 @@ const Header = () => {
             <NavLink to="/active-fires" className={navLinkClass}>
               Active Fires
             </NavLink>
-            <NavLink to="/achievements" className={navLinkClass}>
+            <NavLink to="/about" className={navLinkClass}>
               About Us
             </NavLink>
           </div>
           <div className="flex items-center justify-start gap-1 sm:gap-2">
-            <NavLink to="/about" className={navLinkClass}>
+            <NavLink to="/team" className={navLinkClass}>
               Team
             </NavLink>
             <NavLink to="/contact" className={navLinkClass}>

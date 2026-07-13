@@ -24,22 +24,22 @@ const LayersControl = ({
   };
 
   return (
-    <div className="absolute top-4 right-4 z-[1000]">
+    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1000]">
       {/* Layers Button */}
       <button
         onClick={togglePanel}
-        className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg shadow-lg border border-gray-600 transition-all duration-200"
+        className="bg-gray-800 hover:bg-gray-700 text-white px-3 sm:px-4 py-2 rounded-lg shadow-lg border border-gray-600 transition-all duration-200"
         title="Toggle Layers Panel"
       >
         <div className="flex items-center space-x-2">
           <Layers className="w-5 h-5" />
-          <span>Layers</span>
+          <span className="hidden sm:inline">Layers</span>
         </div>
       </button>
 
       {/* Layers Panel */}
       {isOpen && (
-        <div className="absolute top-12 right-0 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 min-w-64">
+        <div className="absolute top-12 right-0 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-4 w-64 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] overflow-y-auto">
           <div className="space-y-4">
             {/* Map Tile Section */}
             <div>

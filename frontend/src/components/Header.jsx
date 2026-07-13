@@ -2,24 +2,26 @@ import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 
 const navLinkClass = ({ isActive }) =>
-  `text-sm font-medium px-2 py-1 rounded-md transition-colors ${
-    isActive ? 'bg-gray-700 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+  `text-sm sm:text-base md:text-lg font-medium px-1 py-1 border-b-2 whitespace-nowrap transition-colors ${
+    isActive
+      ? 'text-orange-400 border-orange-400'
+      : 'text-gray-300 border-transparent hover:text-white'
   }`;
 
 const Header = () => {
   return (
-    <header className="sticky top-0 z-50 bg-gray-800 p-4 shadow-lg border-b border-gray-700/80">
+    <header className="sticky top-0 z-50 bg-gray-800 p-3 sm:p-4 shadow-lg">
       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
         <div className="flex items-center justify-center md:justify-self-start space-x-3 min-w-0">
           <Link to="/" aria-label="FlameFlux home" className="block leading-none">
             <img src="/flameflux_logo.png" alt="" className="h-8 w-8 object-contain" />
           </Link>
-          <Link to="/" className="text-2xl font-bold text-white hover:text-gray-200">
+          <Link to="/" className="text-xl sm:text-2xl font-bold text-white hover:text-gray-200">
             FlameFlux
           </Link>
         </div>
-        <nav className="grid grid-cols-2 items-center gap-4">
-          <div className="flex items-center justify-end gap-1 sm:gap-2">
+        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 md:grid md:grid-cols-2 md:gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:gap-x-4 md:justify-end md:gap-5">
             <NavLink to="/active-fires" className={navLinkClass}>
               Active Fires
             </NavLink>
@@ -27,7 +29,7 @@ const Header = () => {
               About Us
             </NavLink>
           </div>
-          <div className="flex items-center justify-start gap-1 sm:gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:gap-x-4 md:justify-start md:gap-5">
             <NavLink to="/team" className={navLinkClass}>
               Team
             </NavLink>
@@ -36,7 +38,7 @@ const Header = () => {
             </NavLink>
           </div>
         </nav>
-        <div />
+        <div className="hidden md:block" />
       </div>
     </header>
   );

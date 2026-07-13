@@ -6,7 +6,7 @@ const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedF
   if (!showPrediction) return null;
 
   return (
-    <div className="w-96 bg-gray-800 p-6 overflow-y-auto shadow-xl border-l border-gray-700">
+    <div className="fixed inset-0 z-[1200] sm:static sm:z-auto w-full sm:w-96 bg-gray-800 p-6 overflow-y-auto shadow-xl sm:border-l border-gray-700">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">Fire Prediction</h2>
         <button

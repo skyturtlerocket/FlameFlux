@@ -20,6 +20,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build:us-mask": "node scripts/build-us-unsupported-mask.mjs",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -46,6 +47,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@turf/turf": "^7.3.4",
     "autoprefixer": "^10.4.13",
     "postcss": "^8.4.21",
     "tailwindcss": "^3.4.0"

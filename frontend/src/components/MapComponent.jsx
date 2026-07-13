@@ -4,6 +4,7 @@ import { getTileUrl, getIconSizeForSeverity, getSeverityColorHex, getProbability
 const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers, predictedPerimeterEnabled, predictedPerimeterData, firePredictionData }, ref) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const unsupportedMaskLayerRef = useRef(null);
   const markersRef = useRef([]);
   const polygonsRef = useRef([]);
   const satelliteMarkersRef = useRef([]);
@@ -132,32 +133,46 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
     if (satelliteLayers.viewMode === 'heatmap' && (satelliteLayers.viirs.enabled || satelliteLayers.modis.enabled)) {
       const heatmapData = [];
 
+      // Weight = how confident we are (never fully zeroed out by low/missing
+      // confidence) x how strong the fire signal is (FRP). VIIRS and MODIS
+      // report FRP on very different scales (VIIRS pixels are ~375m vs
+      // MODIS's ~1km, so typical VIIRS FRP is an order of magnitude smaller),
+      // so each is normalized against its own "strong fire" reference value
+      // instead of a shared constant that would leave VIIRS invisible.
+      const FRP_REFERENCE = { VIIRS: 12, MODIS: 300 };
+      const computeWeight = (hotspot) => {
+        const confidenceFactor = 0.5 + 0.5 * ((hotspot.confidence ?? 70) / 100);
+        const reference = FRP_REFERENCE[hotspot.source] || 100;
+        const intensityFactor = Math.min(1, hotspot.intensity / reference);
+        return confidenceFactor * intensityFactor;
+      };
+
       // Add VIIRS data
       if (satelliteLayers.viirs.enabled) {
         satelliteLayers.viirs.data.forEach(hotspot => {
-          const intensity = (hotspot.confidence / 100) * (hotspot.intensity / 200);
-          heatmapData.push([hotspot.latitude, hotspot.longitude, intensity]);
+          heatmapData.push([hotspot.latitude, hotspot.longitude, computeWeight(hotspot)]);
         });
       }
 
       // Add MODIS data
       if (satelliteLayers.modis.enabled) {
         satelliteLayers.modis.data.forEach(hotspot => {
-          const intensity = (hotspot.confidence / 100) * (hotspot.intensity / 200);
-          heatmapData.push([hotspot.latitude, hotspot.longitude, intensity]);
+          heatmapData.push([hotspot.latitude, hotspot.longitude, computeWeight(hotspot)]);
         });
       }
 
       if (heatmapData.length > 0) {
         heatmapLayerRef.current = L.heatLayer(heatmapData, {
-          radius: 20,
-          blur: 15,
+          radius: 28,
+          blur: 18,
           maxZoom: 17,
+          minOpacity: 0.45,
           gradient: {
-            0.4: 'blue',
-            0.6: 'cyan',
-            0.7: 'lime',
-            0.8: 'yellow',
+            0.1: 'blue',
+            0.3: 'cyan',
+            0.5: 'lime',
+            0.7: 'yellow',
+            0.85: 'orange',
             1.0: 'red'
           }
         }).addTo(map);
@@ -517,6 +532,15 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
           console.warn('Error removing heatmap layer:', e);
         }
       }
+
+      if (unsupportedMaskLayerRef.current) {
+        try {
+          mapInstanceRef.current.removeLayer(unsupportedMaskLayerRef.current);
+        } catch (e) {
+          console.warn('Error removing unsupported mask layer:', e);
+        }
+        unsupportedMaskLayerRef.current = null;
+      }
     }
 
     markersRef.current = [];
@@ -579,13 +603,20 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
 
       try {
         const L = window.L;
-        
-        // Initialize the map with current view state
+
+        // No maxBounds — panning worldwide is allowed; maxZoom keeps deep zoom for fire detail.
         const map = L.map(mapRef.current, {
           center: currentViewRef.current.center,
           zoom: currentViewRef.current.zoom,
-          zoomControl: false
+          zoomControl: false,
+          maxZoom: 18,
         });
+
+        // Pane below default overlay so fire polygons / heat stay above the hatched mask
+        map.createPane('unsupportedMask');
+        const unsupportedPane = map.getPane('unsupportedMask');
+        unsupportedPane.style.zIndex = 350;
+        unsupportedPane.style.pointerEvents = 'none';
 
         // Add tile layer
         const tileLayer = L.tileLayer(getTileUrl(mapLayer), {
@@ -594,6 +625,79 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
 
         mapInstanceRef.current = map;
         mapInstanceRef.current.tileLayer = tileLayer;
+
+        const loadUnsupportedMask = async () => {
+          try {
+            const base = process.env.PUBLIC_URL || '';
+            const res = await fetch(`${base}/data/us-unsupported-area-mask.geojson`);
+            if (!res.ok) throw new Error(res.statusText);
+            const geojson = await res.json();
+
+            const injectDefs = (svg) => {
+              if (!svg || svg.querySelector('#firecastUnsupportedHatch')) return;
+              const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+              const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+              pattern.setAttribute('id', 'firecastUnsupportedHatch');
+              pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+              pattern.setAttribute('width', '5');
+              pattern.setAttribute('height', '5');
+              pattern.setAttribute('patternTransform', 'rotate(45)');
+              const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              line.setAttribute('x1', '0');
+              line.setAttribute('y1', '0');
+              line.setAttribute('x2', '0');
+              line.setAttribute('y2', '5');
+              line.setAttribute('stroke', 'rgba(18,18,18,0.48)');
+              line.setAttribute('stroke-width', '1');
+              pattern.appendChild(line);
+              defs.appendChild(pattern);
+              svg.insertBefore(defs, svg.firstChild);
+            };
+
+            const applyHatch = (layer) => {
+              const walk = (ly) => {
+                if (ly._layers) {
+                  ly.eachLayer(walk);
+                  return;
+                }
+                if (ly._path) {
+                  ly._path.setAttribute('fill', 'url(#firecastUnsupportedHatch)');
+                  ly._path.setAttribute('fill-opacity', '0.52');
+                  ly._path.setAttribute('stroke', 'rgba(0,0,0,0.3)');
+                  ly._path.setAttribute('stroke-width', '0.6');
+                }
+              };
+              walk(layer);
+            };
+
+            const maskLayer = L.geoJSON(geojson, {
+              pane: 'unsupportedMask',
+              interactive: false,
+              style: {
+                fillColor: '#0a0a0a',
+                fillOpacity: 0.45,
+                color: 'transparent',
+                weight: 0,
+              },
+            }).addTo(map);
+
+            unsupportedMaskLayerRef.current = maskLayer;
+
+            const finalize = () => {
+              const svg = unsupportedPane.querySelector('svg');
+              injectDefs(svg);
+              applyHatch(maskLayer);
+            };
+            requestAnimationFrame(() => {
+              finalize();
+              setTimeout(finalize, 0);
+            });
+          } catch (e) {
+            console.warn('Could not load unsupported-area mask', e);
+          }
+        };
+
+        void loadUnsupportedMask();
 
         // Store current view when map moves
         map.on('moveend', () => {

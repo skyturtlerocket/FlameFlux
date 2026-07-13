@@ -219,6 +219,12 @@ def build_modis():
     return {"generatedAt": datetime.now().isoformat(), "count": len(hotspots), "hotspots": hotspots}
 
 
+# VIIRS reports confidence as a category ("low"/"nominal"/"high") rather than
+# a 0-100 score like MODIS; map it so the heatmap can weight points sensibly
+# instead of treating every VIIRS hotspot as zero-confidence.
+VIIRS_CONFIDENCE_MAP = {"low": 30, "nominal": 70, "high": 90}
+
+
 def build_viirs():
     resp = requests.get(VIIRS_API, headers=HEADERS, timeout=TIMEOUT)
     resp.raise_for_status()
@@ -229,13 +235,14 @@ def build_viirs():
         lng, lat = val["geometry"]["coordinates"][0], val["geometry"]["coordinates"][1]
         if not is_in_usa(lat, lng):
             continue
+        confidence = VIIRS_CONFIDENCE_MAP.get(str(props.get("confidence")).lower(), 70)
         hotspots.append(
             {
                 "id": val.get("id"),
                 "latitude": lat,
                 "longitude": lng,
                 "age": props.get("hours_old"),
-                "confidence": None,
+                "confidence": confidence,
                 "intensity": props.get("frp"),
                 "source": "VIIRS",
             }

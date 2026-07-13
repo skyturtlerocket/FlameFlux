@@ -84,13 +84,19 @@ def get_viirs_data():
         
         age = props["hours_old"]
         intensity = props["frp"]
-        
+
+        # VIIRS reports confidence as "low"/"nominal"/"high" rather than a
+        # 0-100 score; map it so downstream weighting doesn't treat every
+        # VIIRS hotspot as zero-confidence.
+        viirs_confidence_map = {"low": 30, "nominal": 70, "high": 90}
+        confidence = viirs_confidence_map.get(str(props.get("confidence")).lower(), 70)
+
         hotspot = {
             "id": id,
             "latitude": lat,
             "longitude": long,
             "age": age,
-            "confidence": None,  # VIIRS doesn't seem to have confidence in the original code
+            "confidence": confidence,
             "intensity": intensity,
             "source": "VIIRS"
         }

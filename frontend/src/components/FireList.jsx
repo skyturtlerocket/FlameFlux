@@ -45,10 +45,10 @@ const FireList = ({ fires, handleFireClick, isLoadingData, dataError, firePredic
   }, [fires, firePredictionAvailability, sortKey]);
 
   return (
-    <div className="absolute top-4 left-4 bg-gray-800 bg-opacity-95 backdrop-blur-sm rounded-lg p-4 shadow-xl max-w-sm z-[1000] border border-gray-600">
-      <div className="mb-3 flex items-start justify-between">
-        <h3 className="text-lg font-bold flex items-center text-white">
-          <AlertTriangle className="h-5 w-5 mr-2 text-orange-500" />
+    <div className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-gray-800 bg-opacity-95 backdrop-blur-sm rounded-lg p-3 sm:p-4 shadow-xl max-w-[calc(100vw-6rem)] sm:max-w-sm z-[1000] border border-gray-600">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <h3 className="text-base sm:text-lg font-bold flex items-center text-white">
+          <AlertTriangle className="h-5 w-5 mr-2 text-orange-500 shrink-0" />
           Active Fires ({fires.length})
         </h3>
         <div className="relative">
@@ -62,7 +62,7 @@ const FireList = ({ fires, handleFireClick, isLoadingData, dataError, firePredic
             <span>Sort</span>
           </button>
           {isSortMenuOpen && (
-            <div className="absolute right-0 mt-1 w-56 rounded-md border border-gray-600 bg-gray-900 shadow-lg overflow-hidden">
+            <div className="absolute right-0 mt-1 w-56 max-w-[calc(100vw-3rem)] rounded-md border border-gray-600 bg-gray-900 shadow-lg overflow-hidden">
               {sortOptions.map((option) => (
                 <button
                   key={option.key}

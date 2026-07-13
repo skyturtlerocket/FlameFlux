@@ -1,5 +1,6 @@
 import React from 'react';
 import Header from '../components/Header';
+import { LinkedInBadge } from '../components/BrandIcons';
 import { teamMembers } from '../data/teamMembers';
 
 const AboutUs = () => {
@@ -13,8 +14,15 @@ const AboutUs = () => {
             {teamMembers.map((member) => (
               <article
                 key={member.name}
-                className="rounded-lg border border-gray-600 bg-gray-800/50 p-6 flex items-center gap-5"
+                className="relative rounded-lg border border-gray-600 bg-gray-800/50 p-6 flex items-center gap-5"
               >
+                {member.linkedinUrl && (
+                  <LinkedInBadge
+                    href={member.linkedinUrl}
+                    label={`${member.name} on LinkedIn`}
+                    className="absolute top-4 right-4"
+                  />
+                )}
                 {member.imageUrl ? (
                   <img src={member.imageUrl} alt="" className="w-24 h-24 rounded-full object-cover shrink-0" />
                 ) : (
@@ -25,7 +33,7 @@ const AboutUs = () => {
                     Photo TBD
                   </div>
                 )}
-                <div className="min-w-0">
+                <div className="min-w-0 pr-10">
                   <h3 className="text-xl font-semibold text-white">{member.name}</h3>
                   {member.role && <p className="text-sm text-gray-400 mt-1">{member.role}</p>}
                   <p className="text-gray-400 mt-3 text-sm leading-relaxed">{member.bio}</p>

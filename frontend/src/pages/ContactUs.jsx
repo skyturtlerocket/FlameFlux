@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
+import { Instagram } from 'lucide-react';
 import Header from '../components/Header';
+import { LinkedInBadge } from '../components/BrandIcons';
+
+const INSTAGRAM_URL = 'https://www.instagram.com/flamefluxapp/';
+const LINKEDIN_URL = 'https://www.linkedin.com/company/flameflux/posts/?feedView=all';
 
 const ContactUs = () => {
   const [formData, setFormData] = useState({
@@ -169,6 +174,22 @@ const ContactUs = () => {
               </p>
             )}
           </form>
+
+          <div className="mt-10 flex items-center gap-4">
+            <span className="text-sm font-medium text-gray-400">Follow FlameFlux</span>
+            <div className="flex items-center gap-3">
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-600 bg-gray-800/60 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+              >
+                <Instagram className="w-5 h-5" />
+              </a>
+              <LinkedInBadge href={LINKEDIN_URL} label="LinkedIn" />
+            </div>
+          </div>
         </div>
       </main>
     </div>

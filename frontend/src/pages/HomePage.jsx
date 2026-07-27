@@ -41,9 +41,6 @@ const HomePage = () => {
 
         <main className="relative z-10 flex-1 grid grid-cols-1 sm:grid-cols-2 items-center gap-10 xl:gap-16 px-4 sm:px-8 xl:px-16 py-16 max-w-7xl 2xl:max-w-[96rem] mx-auto w-full">
           <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-            <p className="text-sm xl:text-base uppercase tracking-[0.2em] text-orange-300/90 mb-4 font-medium">
-              Wildfire intelligence
-            </p>
             <h1 className="text-4xl sm:text-5xl md:text-6xl xl:text-7xl 2xl:text-8xl font-bold leading-tight mb-6 drop-shadow-lg">
               Predict early.
               <span className="block text-orange-400 mt-1">Act faster.</span>

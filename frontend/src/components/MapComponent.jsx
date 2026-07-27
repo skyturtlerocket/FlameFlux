@@ -73,7 +73,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
         }).addTo(map);
 
         marker.bindPopup(`
-          <div style="color: #374151; font-family: system-ui;">
+          <div style="color: #374151; font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;">
             <h3 style="font-weight: bold; font-size: 14px; margin: 0 0 8px 0; color: #3b82f6;">VIIRS Hotspot</h3>
             <p style="margin: 2px 0; font-size: 12px;">ID: ${hotspot.id}</p>
             <p style="margin: 2px 0; font-size: 12px;">Confidence: ${hotspot.confidence}%</p>
@@ -103,7 +103,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
         }).addTo(map);
 
         marker.bindPopup(`
-          <div style="color: #374151; font-family: system-ui;">
+          <div style="color: #374151; font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;">
             <h3 style="font-weight: bold; font-size: 14px; margin: 0 0 8px 0; color: #ef4444;">MODIS Hotspot</h3>
             <p style="margin: 2px 0; font-size: 12px;">ID: ${hotspot.id}</p>
             <p style="margin: 2px 0; font-size: 12px;">Confidence: ${hotspot.confidence}%</p>
@@ -287,7 +287,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
       
       // Add popup with probability information
       marker.bindPopup(`
-        <div style="color: #374151; font-family: system-ui;">
+        <div style="color: #374151; font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;">
           <h3 style="font-weight: bold; font-size: 14px; margin: 0 0 8px 0; color: #dc2626;">Fire Prediction</h3>
           <p style="margin: 2px 0; font-size: 12px;">Probability: ${(probability * 100).toFixed(1)}%</p>
           <p style="margin: 2px 0; font-size: 12px;">Lat: ${lat.toFixed(4)}, Lng: ${lon.toFixed(4)}</p>
@@ -342,7 +342,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
         .addTo(map);
 
       const basePopupHtml = `
-            <div style="color: #374151; font-family: system-ui;">
+            <div style="color: #374151; font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;">
               <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${fire.name}</h3>
               <p style="margin: 2px 0;">Size: ${fire.size} acres</p>
               <p style="margin: 2px 0;">Containment: ${fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>
@@ -360,7 +360,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
           hasPredictionCSV(fire.name).then((exists) => {
             if (!exists) return;
             const popupHtml = `
-              <div style="color: #374151; font-family: system-ui;">
+              <div style="color: #374151; font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;">
                 <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${fire.name}</h3>
                 <p style="margin: 2px 0;">Size: ${fire.size} acres</p>
                 <p style="margin: 2px 0;">Containment: ${fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>

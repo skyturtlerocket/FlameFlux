@@ -109,8 +109,8 @@ const FireList = ({ fires, handleFireClick, isLoadingData, dataError, firePredic
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <h4 className="font-semibold text-white">{fire.name}</h4>
-                <p className="text-sm text-gray-200">{fire.size} acres</p>
-                <p className="text-xs text-gray-300">Containment: {fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>
+                <p className="text-sm text-gray-200"><span className="tabular">{fire.size}</span> acres</p>
+                <p className="text-xs text-gray-300">Containment: <span className="tabular">{fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</span></p>
               </div>
               <div className="text-right ml-2 flex flex-col items-end">
                 {hasPrediction && (

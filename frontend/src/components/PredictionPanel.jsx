@@ -29,8 +29,8 @@ const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedF
             <div className="bg-gray-700 p-4 rounded-lg">
               <h3 className="font-semibold text-lg mb-2">{selectedFire.name}</h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>Size: {selectedFire.size} acres</div>
-                <div>Containment: {selectedFire.containment !== null && selectedFire.containment !== undefined ? `${selectedFire.containment}%` : 'N/A'}</div>
+                <div>Size: <span className="tabular">{selectedFire.size}</span> acres</div>
+                <div>Containment: <span className="tabular">{selectedFire.containment !== null && selectedFire.containment !== undefined ? `${selectedFire.containment}%` : 'N/A'}</span></div>
                 <div className={getSeverityColor(selectedFire.severity)}>
                   Severity: {selectedFire.severity}
                 </div>

@@ -3,10 +3,15 @@ import Header from './Header';
 import MapComponent from './MapComponent';
 import FireList from './FireList';
 import PredictionPanel from './PredictionPanel';
+import PredictionTimeline from './PredictionTimeline';
 import LayersControl from './LayersControl';
 import { fetchRealTimeFireData } from '../services/fireApiDirect';
 import { fetchSatelliteData } from '../services/satelliteApiDirect';
-import { hasPredictionCSV, loadFirePredictionCSV } from '../utils/helpers';
+import { fetchPredictionIndex, fetchFirePrediction } from '../services/predictionsApi';
+import { normalizeFireName } from '../utils/helpers';
+
+const FORECAST_HOURS = 24;
+const PLAYBACK_INTERVAL_MS = 800;
 
 const WildfireDashboard = () => {
   const mapRef = useRef();
@@ -22,7 +27,10 @@ const WildfireDashboard = () => {
   const [firePredictionData, setFirePredictionData] = useState(null);
   const [predictionLoading, setPredictionLoading] = useState(false);
   const [showPredictionMarkers, setShowPredictionMarkers] = useState(false);
+  const [predictionIndex, setPredictionIndex] = useState({ generatedAt: null, fires: [] });
   const [firePredictionAvailability, setFirePredictionAvailability] = useState({});
+  const [currentHour, setCurrentHour] = useState(FORECAST_HOURS);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Satellite data state
   const [satelliteLayers, setSatelliteLayers] = useState({
@@ -63,7 +71,7 @@ const WildfireDashboard = () => {
               // Load VIIRS data
         setIsLoadingSatelliteData(prev => ({ ...prev, viirs: true }));
         const viirsData = await fetchSatelliteData('VIIRS');
-        
+
         // Load MODIS data
         setIsLoadingSatelliteData(prev => ({ ...prev, modis: true }));
         const modisData = await fetchSatelliteData('MODIS');
@@ -95,7 +103,15 @@ const WildfireDashboard = () => {
     }
   }, []);
 
-  // Load fire prediction data for selected fire
+  // Load the site-wide index of which fires currently have an arrival_run
+  // forecast (frontend/public/data/predictions/index.json).
+  const loadPredictionIndex = useCallback(async () => {
+    const index = await fetchPredictionIndex();
+    setPredictionIndex(index);
+  }, []);
+
+  // Load fire prediction GeoJSON (observed perimeter + 24 hourly isochrone
+  // rings) for the selected fire.
   const loadFirePrediction = useCallback(async (fire) => {
     if (!fire) {
       setFirePredictionData(null);
@@ -104,10 +120,12 @@ const WildfireDashboard = () => {
 
     setPredictionLoading(true);
     try {
-      const csvData = await loadFirePredictionCSV(fire.name);
-      if (csvData && csvData.length > 0) {
-        console.log(`Loaded prediction data for ${fire.name}:`, csvData.length, 'points');
-        setFirePredictionData(csvData);
+      const featureCollection = await fetchFirePrediction(fire.name);
+      if (featureCollection && featureCollection.features && featureCollection.features.length > 0) {
+        console.log(`Loaded prediction for ${fire.name}:`, featureCollection.features.length, 'features');
+        setFirePredictionData(featureCollection);
+        setCurrentHour(FORECAST_HOURS);
+        setIsPlaying(false);
       } else {
         console.log(`No prediction data available for ${fire.name}`);
         setFirePredictionData(null);
@@ -124,47 +142,65 @@ const WildfireDashboard = () => {
   const clearFirePrediction = useCallback(() => {
     setFirePredictionData(null);
     setShowPredictionMarkers(false);
+    setCurrentHour(FORECAST_HOURS);
+    setIsPlaying(false);
   }, []);
 
+  // Derive which fires currently have a forecast from the site-wide index,
+  // rather than probing each fire individually (the old per-fire CSV check).
   useEffect(() => {
-    let isCancelled = false;
+    const availableNames = new Set(predictionIndex.fires.map((f) => f.name));
+    const next = {};
+    fires.forEach((fire) => {
+      next[fire.id] = availableNames.has(normalizeFireName(fire.name));
+    });
+    setFirePredictionAvailability(next);
+  }, [fires, predictionIndex]);
 
-    const loadPredictionAvailability = async () => {
-      if (!fires.length) {
-        setFirePredictionAvailability({});
-        return;
-      }
-
-      const entries = await Promise.all(
-        fires.map(async (fire) => {
-          const hasPrediction = await hasPredictionCSV(fire.name);
-          return [fire.id, hasPrediction];
-        })
-      );
-
-      if (!isCancelled) {
-        setFirePredictionAvailability(Object.fromEntries(entries));
-      }
-    };
-
-    loadPredictionAvailability();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [fires]);
-
-  // Toggle prediction markers on map
+  // Toggle the prediction isochrones on the map
   const handleTogglePrediction = useCallback(() => {
-    if (firePredictionData && firePredictionData.length > 0) {
+    if (firePredictionData && firePredictionData.features && firePredictionData.features.length > 0) {
       setShowPredictionMarkers(prev => !prev);
     }
   }, [firePredictionData]);
+
+  // Timeline scrub: jump to an hour, pausing any playback in progress.
+  const handleScrub = useCallback((hour) => {
+    setIsPlaying(false);
+    setCurrentHour(hour);
+  }, []);
+
+  // Timeline play/pause: starting from the end restarts from hour 1.
+  const handleTogglePlay = useCallback(() => {
+    setIsPlaying(prev => {
+      if (!prev) {
+        setCurrentHour(h => (h >= FORECAST_HOURS ? 1 : h));
+        return true;
+      }
+      return false;
+    });
+  }, []);
+
+  // Advance currentHour on an interval while playing; stop at the end.
+  useEffect(() => {
+    if (!isPlaying) return undefined;
+    const interval = setInterval(() => {
+      setCurrentHour(prev => {
+        if (prev >= FORECAST_HOURS) {
+          setIsPlaying(false);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, PLAYBACK_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [isPlaying]);
 
   // Load fire data on component mount
   useEffect(() => {
     loadFireData();
     loadSatelliteData();
+    loadPredictionIndex();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array since these functions are stable
 
@@ -173,10 +209,10 @@ const WildfireDashboard = () => {
     setSelectedFire(fire);
     setLoading(true);
     setShowPrediction(true);
-    
+
     // Clear previous prediction data
     clearFirePrediction();
-    
+
     // Zoom to fire perimeter
     if (fire && fire.geometry && mapRef.current && mapRef.current.zoomToFire) {
       console.log('Attempting to zoom to fire:', fire.name);
@@ -184,10 +220,10 @@ const WildfireDashboard = () => {
     } else {
       console.log('No geometry found for fire or mapRef not ready:', fire);
     }
-    
+
     // Load fire prediction data (no await since we don't want to block the UI)
     loadFirePrediction(fire);
-    
+
     // No longer need the old prediction API call since we removed the 24-hour prediction box
     setPrediction(null);
     setLoading(false);
@@ -211,6 +247,8 @@ const WildfireDashboard = () => {
     }));
   }, []);
 
+  const showTimeline = showPredictionMarkers && firePredictionData && firePredictionData.features.length > 0;
+
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-white">
       <Header />
@@ -218,16 +256,18 @@ const WildfireDashboard = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Map section */}
         <div className="flex-1 relative">
-          <MapComponent 
+          <MapComponent
             ref={mapRef}
             fires={fires}
             mapLayer={mapLayer}
             onFireClick={handleFireClick}
             satelliteLayers={satelliteLayers}
             firePredictionData={showPredictionMarkers ? firePredictionData : null}
+            currentHour={currentHour}
+            predictionAvailability={firePredictionAvailability}
           />
-          
-          <FireList 
+
+          <FireList
             fires={fires}
             handleFireClick={handleFireClick}
             isLoadingData={isLoadingData}
@@ -244,10 +284,21 @@ const WildfireDashboard = () => {
             onViewModeChange={handleViewModeChange}
             isLoadingSatelliteData={isLoadingSatelliteData}
           />
+
+          {showTimeline && (
+            <PredictionTimeline
+              featureCollection={firePredictionData}
+              currentHour={currentHour}
+              hours={FORECAST_HOURS}
+              isPlaying={isPlaying}
+              onScrub={handleScrub}
+              onTogglePlay={handleTogglePlay}
+            />
+          )}
         </div>
 
         {/* Prediction panel */}
-        <PredictionPanel 
+        <PredictionPanel
           showPrediction={showPrediction}
           setShowPrediction={setShowPrediction}
           loading={loading}

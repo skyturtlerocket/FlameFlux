@@ -55,116 +55,51 @@ export const getSeverityColor = (severity) => {
     }
   };
 
-// Convert fire name to CSV filename format
-export const convertFireNameToCSV = (fireName) => {
+// Parse a timestamp emitted by the arrival_run pipeline into a Date.
+//
+// Python's datetime.isoformat()/str() writes "2026-07-24 07:00:00" — a SPACE
+// separator and, for the naive UTC fields (valid_at_utc, valid_from_utc,
+// valid_to_utc), no zone designator at all. `new Date()` treats a zone-less
+// datetime like that as LOCAL time, so a UTC forecast hour would render
+// shifted by the viewer's UTC offset (4h off here, 7h in California). These
+// fields are UTC by name and by construction, so normalize to a form Date
+// parses unambiguously: "T" separator, explicit "Z" when no zone is present.
+export const parseUtcTimestamp = (value) => {
+  if (!value) return null;
+  let s = String(value).trim().replace(' ', 'T');
+  // Only append Z when the string carries no zone of its own; issued_at_utc
+  // already ends in "+00:00" and must not be double-suffixed.
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(s)) s += 'Z';
+  const date = new Date(s);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+// Normalize a fire name into the filename form the prediction pipeline uses
+// (arrival_run/pipeline/create_geojson_prediction.py's normalize_fire_name):
+// trim + internal spaces -> underscores. Used to look up this fire's
+// forecast GeoJSON under /data/predictions/.
+export const normalizeFireName = (fireName) => {
   if (!fireName) return null;
-  
-  // Remove leading/trailing whitespace and replace internal spaces with underscores
   return fireName.trim().replace(/\s+/g, '_');
 };
 
-// Get probability color based on predicted_prob value
-export const getProbabilityColor = (probability) => {
-  // Ensure probability is between 0.5 and 1.0
-  const p = Math.max(0.5, Math.min(1.0, probability));
-  
-  // Interpolate between yellow (p=0.5) and red (p=1.0)
-  const ratio = (p - 0.5) / 0.5; // 0 to 1
-  
-  // Yellow: rgb(255, 255, 0) to Red: rgb(255, 0, 0)
-  const red = 255;
-  const green = Math.round(255 * (1 - ratio));
-  const blue = 0;
-  
-  return `rgb(${red}, ${green}, ${blue})`;
-};
-
-// Load CSV data for a specific fire
-export const loadFirePredictionCSV = async (fireName) => {
-  try {
-    const csvFileName = convertFireNameToCSV(fireName);
-    if (!csvFileName) {
-      throw new Error('Invalid fire name');
-    }
-    
-    // Fetch the CSV file directly from the public directory
-    const response = await fetch(`/csv/${csvFileName}.csv`);
-
-    // If the file isn't found, return null so callers treat it as "no data"
-    if (!response.ok) {
-      throw new Error(`CSV file not found: ${csvFileName}.csv`);
-    }
-
-    // Do a lightweight validation: ensure the response looks like CSV and not HTML
-    const contentType = (response.headers && response.headers.get && response.headers.get('content-type')) || '';
-    const text = await response.text();
-    const firstLine = (text.split('\n')[0] || '').toLowerCase();
-
-    const isCSVType = contentType.includes('text/csv') || contentType.includes('application/csv') || contentType.includes('application/octet-stream');
-    const hasHeader = firstLine.includes('predicted_prob') || (firstLine.includes('lat') && firstLine.includes('lon')) || firstLine.includes('predicted_prob');
-
-    // If it doesn't appear to be CSV (for example dev server returning index.html), treat as not found
-    if (!isCSVType && !hasHeader) {
-      throw new Error(`Fetched resource is not a CSV for ${csvFileName}.csv`);
-    }
-
-    // Parse CSV
-    const csvText = text;
-    const lines = csvText.split('\n');
-    const headers = lines[0].split(',');
-    const data = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim()) {
-        const values = lines[i].split(',');
-        const row = {};
-        headers.forEach((header, index) => {
-          row[header.trim()] = values[index]?.trim();
-        });
-        data.push(row);
-      }
-    }
-
-    return data;
-  } catch (error) {
-    console.error(`Failed to load CSV for fire ${fireName}:`, error);
-    return null;
-  }
-};
-
-// Cache for prediction CSV existence checks to avoid repeated network calls
-const csvExistenceCache = new Map();
-
-// Check if a prediction CSV exists for a given fire name
-export const hasPredictionCSV = async (fireName) => {
-  const csvFileName = convertFireNameToCSV(fireName);
-  if (!csvFileName) return false;
-
-  if (csvExistenceCache.has(csvFileName)) {
-    return csvExistenceCache.get(csvFileName);
-  }
-
-  try {
-    const response = await fetch(`/csv/${csvFileName}.csv`, { method: 'GET' });
-    if (!response.ok) {
-      csvExistenceCache.set(csvFileName, false);
-      return false;
-    }
-
-    // Validate content-type and a minimal CSV header
-    const contentType = (response.headers && response.headers.get && response.headers.get('content-type')) || '';
-    const isCSVType = contentType.includes('text/csv') || contentType.includes('application/csv') || contentType.includes('application/octet-stream');
-
-    // Read just a small portion (dev servers may not support partial reads easily; read full then slice header)
-    const text = await response.text();
-    const firstLine = (text.split('\n')[0] || '').toLowerCase();
-    const hasHeader = firstLine.includes('predicted_prob') || firstLine.includes('lat,') || firstLine.includes('lon');
-
-    const exists = isCSVType && hasHeader;
-    csvExistenceCache.set(csvFileName, exists);
-    return exists;
-  } catch (e) {
-    csvExistenceCache.set(csvFileName, false);
-    return false;
-  }
+// Color for an isochrone ring at hour `h` of a 24h forecast: yellow (soon)
+// -> orange -> dark red (full 24h), so the whole set of nested hourly rings
+// reads as a time gradient at a glance.
+export const getIsochroneColor = (hourFraction) => {
+  const f = Math.max(0, Math.min(1, hourFraction));
+  const stops = [
+    [250, 204, 21],  // yellow-400
+    [249, 115, 22],  // orange-500
+    [127, 29, 29],   // red-900
+  ];
+  const seg = f * (stops.length - 1);
+  const i = Math.min(Math.floor(seg), stops.length - 2);
+  const t = seg - i;
+  const [r1, g1, b1] = stops[i];
+  const [r2, g2, b2] = stops[i + 1];
+  const r = Math.round(r1 + (r2 - r1) * t);
+  const g = Math.round(g1 + (g2 - g1) * t);
+  const b = Math.round(b1 + (b2 - b1) * t);
+  return `rgb(${r}, ${g}, ${b})`;
 };

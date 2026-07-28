@@ -1,14 +1,18 @@
 import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { getTileUrl, getIconSizeForSeverity, getSeverityColorHex, getProbabilityColor, hasPredictionCSV } from '../utils/helpers';
+import { getTileUrl, getIconSizeForSeverity, getSeverityColorHex, getIsochroneColor } from '../utils/helpers';
 
-const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers, predictedPerimeterEnabled, predictedPerimeterData, firePredictionData }, ref) => {
+const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers, firePredictionData, currentHour, predictionAvailability }, ref) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const unsupportedMaskLayerRef = useRef(null);
   const markersRef = useRef([]);
   const polygonsRef = useRef([]);
   const satelliteMarkersRef = useRef([]);
-  const predictionMarkersRef = useRef([]);
+  // Prediction (arrival_run) isochrone layers: one L.geoJSON per hour, keyed
+  // by hour number. Kept separate from polygonsRef so scrubbing the timeline
+  // can restyle these without touching the fires' own perimeter outlines.
+  const predictionIsochroneLayersRef = useRef({});
+  const predictionBuiltForRef = useRef(null);
   const heatmapLayerRef = useRef(null);
   const resizeObserverRef = useRef(null);
   const heatmapLoadedRef = useRef(false);
@@ -249,56 +253,69 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
     }
   }, []);
 
-  // Add fire prediction probability markers
-  const addFirePredictionMarkers = useCallback((map, L) => {
-    // Always clear existing prediction markers first
-    predictionMarkersRef.current.forEach(marker => map.removeLayer(marker));
-    predictionMarkersRef.current = [];
-    
-    if (!firePredictionData || !firePredictionData.length) {
-      console.log('No fire prediction data available - markers cleared');
-      return;
-    }
-    
-    console.log('Adding fire prediction markers:', firePredictionData.length);
-    
-    firePredictionData.forEach((point, idx) => {
-      const lat = parseFloat(point.lat);
-      const lon = parseFloat(point.lon);
-      const probability = parseFloat(point.predicted_prob);
-      
-      if (isNaN(lat) || isNaN(lon) || isNaN(probability)) {
-        console.warn(`Invalid data point #${idx}:`, point);
+  // Render the arrival_run forecast as color-graded isochrone CONTOURS: all 24
+  // hourly reach rings drawn at once (yellow "soon" -> dark red "+24h") as
+  // outlines only, no fill -- the fire's observed perimeter is already drawn
+  // (addFirePolygons, solid red, always on) for every fire, so re-filling it
+  // here would both duplicate it and bury it under an opaque block of color
+  // (every reach ring is t0-union-growth, so a filled hour-1 ring already
+  // covers the ENTIRE existing perimeter). Outline-only avoids both problems:
+  // the red base perimeter stays visible, and each ring's boundary traces
+  // just that hour's predicted extent. Rebuilds the layers only when the
+  // fire's FeatureCollection itself changes; scrubbing the timeline
+  // (currentHour) just restyles the existing layers' weight/opacity, so
+  // dragging the slider never re-parses/re-adds 24 polygons per frame.
+  const addPredictionIsochrones = useCallback((map, L, featureCollection, hour) => {
+    if (predictionBuiltForRef.current !== featureCollection) {
+      Object.values(predictionIsochroneLayersRef.current).forEach((layer) => {
+        try { map.removeLayer(layer); } catch (e) { /* no-op */ }
+      });
+      predictionIsochroneLayersRef.current = {};
+
+      predictionBuiltForRef.current = featureCollection;
+
+      if (!featureCollection || !featureCollection.features) {
         return;
       }
-      
-      // Get color based on probability
-      const color = getProbabilityColor(probability);
-      
-      // Create circle marker
-      const marker = L.circleMarker([lat, lon], {
-        radius: 4,
-        fillColor: color,
-        color: color,
-        weight: 1,
-        opacity: 0.8,
-        fillOpacity: 0.7
-      }).addTo(map);
-      
-      // Add popup with probability information
-      marker.bindPopup(`
-        <div style="color: #374151; font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;">
-          <h3 style="font-weight: bold; font-size: 14px; margin: 0 0 8px 0; color: #dc2626;">Fire Prediction</h3>
-          <p style="margin: 2px 0; font-size: 12px;">Probability: ${(probability * 100).toFixed(1)}%</p>
-          <p style="margin: 2px 0; font-size: 12px;">Lat: ${lat.toFixed(4)}, Lng: ${lon.toFixed(4)}</p>
-        </div>
-      `);
-      
-      predictionMarkersRef.current.push(marker);
+
+      // Add h24 first so h1 ends up drawn on top (sooner hours visually "win").
+      const reachFeatures = featureCollection.features
+        .filter((f) => /^predicted_reach_h\d{2}$/.test(f.properties?.layer || ''))
+        .sort((a, b) => b.properties.hour - a.properties.hour);
+
+      reachFeatures.forEach((feature) => {
+        const hourNum = feature.properties.hour;
+        const color = getIsochroneColor(hourNum / 24);
+        const layer = L.geoJSON(feature, {
+          style: { color, weight: 2, fill: false, opacity: 0.7 },
+          interactive: false,
+        }).addTo(map);
+        predictionIsochroneLayersRef.current[hourNum] = layer;
+      });
+    }
+
+    // Highlight rings up to the selected hour; dim the rest so the whole
+    // 24h set stays visible as context.
+    Object.entries(predictionIsochroneLayersRef.current).forEach(([hourStr, layer]) => {
+      const active = Number(hourStr) <= hour;
+      layer.setStyle({
+        weight: active ? 2.5 : 1,
+        opacity: active ? 0.85 : 0.25,
+      });
     });
-    
-    console.log(`Added ${predictionMarkersRef.current.length} prediction markers`);
-  }, [firePredictionData]);
+
+    // The h1 ring (t0 + only the first hour's predicted growth) is nearly
+    // coincident with the fire's true current outline for any large/slow
+    // fire, and reach rings are added to the map AFTER the base red
+    // perimeter -- so without this, h1's outline visually sits on top of
+    // and hides the red perimeter it almost exactly overlaps. Bring the red
+    // polygons back to front every time so the true current perimeter
+    // always reads as a distinct red line, not swallowed by the closest
+    // isochrone ring.
+    polygonsRef.current.forEach((polygon) => {
+      try { polygon.bringToFront(); } catch (e) { /* no-op */ }
+    });
+  }, []);
 
   const addFireMarkers = useCallback((map, L) => {
     // Clear existing markers and polygons
@@ -352,43 +369,36 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
             </div>
           `;
 
-      marker.bindPopup(basePopupHtml)
-        .on('click', () => onFireClick(fire));
-
-        // If prediction CSV exists, augment popup with a View Prediction button
-        try {
-          hasPredictionCSV(fire.name).then((exists) => {
-            if (!exists) return;
-            const popupHtml = `
-              <div style="color: #374151; font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;">
-                <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${fire.name}</h3>
-                <p style="margin: 2px 0;">Size: ${fire.size} acres</p>
-                <p style="margin: 2px 0;">Containment: ${fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>
-                <p style="margin: 2px 0; color: ${getSeverityColorHex(fire.severity)}; font-weight: 600;">
-                  Severity: ${fire.severity}
-                </p>
-                <div style="display: flex; gap: 8px; margin-top: 8px;">
-                  <button data-action="view-prediction" style="
-                    background: #3b82f6;
-                    color: white;
-                    border: none;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-size: 12px;
-                  ">View Prediction</button>
-                </div>
-              </div>`;
-            try {
-              const popup = marker.getPopup();
-              if (popup && popup.setContent) {
-                popup.setContent(popupHtml);
-              }
-            } catch (e) { /* no-op */ }
-          });
-        } catch (e) {
-          // ignore
-        }
+      // If an arrival_run forecast exists for this fire, augment the popup
+      // with a View Forecast button (synchronous lookup against the
+      // site-wide prediction index, rather than the old per-fire CSV probe).
+      if (predictionAvailability && predictionAvailability[fire.id]) {
+        const popupHtml = `
+          <div style="color: #374151; font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;">
+            <h3 style="font-weight: bold; font-size: 16px; margin: 0 0 8px 0;">${fire.name}</h3>
+            <p style="margin: 2px 0;">Size: ${fire.size} acres</p>
+            <p style="margin: 2px 0;">Containment: ${fire.containment !== null && fire.containment !== undefined ? `${fire.containment}%` : 'N/A'}</p>
+            <p style="margin: 2px 0; color: ${getSeverityColorHex(fire.severity)}; font-weight: 600;">
+              Severity: ${fire.severity}
+            </p>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button data-action="view-prediction" style="
+                background: #3b82f6;
+                color: white;
+                border: none;
+                padding: 4px 8px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+              ">View Forecast</button>
+            </div>
+          </div>`;
+        marker.bindPopup(popupHtml)
+          .on('click', () => onFireClick(fire));
+      } else {
+        marker.bindPopup(basePopupHtml)
+          .on('click', () => onFireClick(fire));
+      }
 
         // Keep popup open when hovering popup content; close only when leaving both marker and popup
         let isHoveringPopup = false;
@@ -427,7 +437,7 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
 
       markersRef.current.push(marker);
     });
-  }, [fires, onFireClick, addFirePolygons]);
+  }, [fires, onFireClick, addFirePolygons, predictionAvailability]);
 
   // Zoom to fire perimeter
   const zoomToFire = useCallback((fire) => {
@@ -524,6 +534,15 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
         }
       });
 
+      // Clean up prediction isochrone layers
+      Object.values(predictionIsochroneLayersRef.current).forEach(layer => {
+        try {
+          mapInstanceRef.current.removeLayer(layer);
+        } catch (e) {
+          console.warn('Error removing prediction isochrone layer:', e);
+        }
+      });
+
       // Clean up heatmap layer
       if (heatmapLayerRef.current) {
         try {
@@ -547,6 +566,8 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
     polygonsRef.current = [];
     satelliteMarkersRef.current = [];
     heatmapLayerRef.current = null;
+    predictionIsochroneLayersRef.current = {};
+    predictionBuiltForRef.current = null;
 
     // Remove map instance
     if (mapInstanceRef.current) {
@@ -814,16 +835,16 @@ const MapComponent = forwardRef(({ fires, mapLayer, onFireClick, satelliteLayers
     }
   }, [fires, addFirePolygons]);
 
-  // Update fire prediction markers when data changes
+  // Update prediction isochrone bands when the forecast or scrubbed hour changes
   useEffect(() => {
     if (mapInstanceRef.current && window.L) {
       try {
-        addFirePredictionMarkers(mapInstanceRef.current, window.L);
+        addPredictionIsochrones(mapInstanceRef.current, window.L, firePredictionData, currentHour);
       } catch (error) {
-        console.error('Error updating fire prediction markers:', error);
+        console.error('Error updating prediction isochrones:', error);
       }
     }
-  }, [firePredictionData, addFirePredictionMarkers]);
+  }, [firePredictionData, currentHour, addPredictionIsochrones]);
 
   // Make selectFire global for popup buttons
   useEffect(() => {

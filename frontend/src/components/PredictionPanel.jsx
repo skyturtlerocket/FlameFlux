@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { X, Thermometer, Wind, MapPin, AlertTriangle } from 'lucide-react';
-import { getSeverityColor, formatDate, getIsochroneColor, parseUtcTimestamp } from '../utils/helpers';
+import { X, Thermometer, Wind, MapPin } from 'lucide-react';
+import { getSeverityColor, formatDate, getIsochroneColor } from '../utils/helpers';
 
 const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedFire, prediction, firePredictionData, predictionLoading, onTogglePrediction, showPredictionMarkers }) => {
   // Every feature in the forecast carries the same provenance properties
@@ -12,18 +12,6 @@ const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedF
     }
     return firePredictionData.features[0].properties;
   }, [firePredictionData]);
-
-  // A forecast only covers valid_from_utc..valid_to_utc (24h from the fire's
-  // last WFIGS perimeter). Once that window has passed the isochrones are
-  // describing a time that has already happened, so say so rather than
-  // presenting them as a live outlook — the pipeline ages a fire out entirely
-  // after export_for_site.py's --max-staleness-days, but a forecast can sit
-  // expired-but-published for a while before that.
-  const validTo = useMemo(
-    () => parseUtcTimestamp(forecastMeta?.valid_to_utc),
-    [forecastMeta]
-  );
-  const isExpired = validTo ? validTo.getTime() < Date.now() : false;
 
   if (!showPrediction) return null;
 
@@ -74,30 +62,8 @@ const PredictionPanel = ({ showPrediction, setShowPrediction, loading, selectedF
                 </div>
               ) : forecastMeta ? (
                 <div className="space-y-3">
-                  {isExpired ? (
-                    <div className="text-amber-400 text-sm flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                      <span>
-                        Forecast window ended{' '}
-                        <span className="tabular">{formatDate(parseUtcTimestamp(forecastMeta.valid_to_utc))}</span>
-                        {' '}— showing the last run, not a current outlook.
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="text-green-400 text-sm">
-                      ✓ Hourly forecast available
-                    </div>
-                  )}
-
-                  <div className="text-xs text-gray-400 space-y-0.5">
-                    <div>
-                      Issued <span className="tabular">{formatDate(parseUtcTimestamp(forecastMeta.issued_at_utc))}</span>
-                    </div>
-                    {forecastMeta.degraded_history && (
-                      <div className="text-amber-400">
-                        Limited perimeter history — lower confidence than usual.
-                      </div>
-                    )}
+                  <div className="text-green-400 text-sm">
+                    ✓ Hourly forecast available
                   </div>
 
                   <button
